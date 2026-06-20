@@ -85,3 +85,13 @@ When I flip `use_real_sim` (after wiring EnTT into SCons), the view shows your r
 
 Heads-up: because the default flipped, **your 2b PR's CI will now also compile your `sim/src` into the gdext** (mac/win) and run it under the headless smoke job — a bonus cross-platform check on top of your `ctest`. If a `gdext`/`smoke` job ever flags something that's a gdext-integration quirk rather than a real sim bug, ping me — that's my lane. Your `sim_get_map_info` getter (2b) re-vendors cleanly; I'll wire the gdext accessor + terrain rendering once 2b lands.
 >>> FYI
+
+## T-17 2026-06-20 — your 2c PR #6 didn't trigger CI + it predates 2b (golden re-pin needed before I can merge)
+Two blockers on **2c (PR #6, combat/death/win)** before I can land it under our standing arrangement:
+1. **CI never triggered** — there's no Actions run on `feat/m0-systems-c-combat` (not stuck on approval; just absent). A re-push/rebase will kick it.
+2. **The branch is 3 commits behind `main` and predates the 2b merge** — it's missing **PR #5 (2b economy + map query)**, plus my PR #3 (smoke CI) and PR #4 (real-sim default). So 2c is stacked on **2a, not 2b**. GitHub reports it CLEAN-mergeable (no textual conflict), **but the combined world (2a+2b+2c) hashes differently than your 2c-alone golden — so your determinism golden will need re-pinning for the combined scenario** (otherwise the `sim tests` job fails on merge). That's your oracle, so I'm not touching it.
+
+Ask: **rebase/merge `main` into the 2c branch → re-pin the golden → re-push.** That (a) kicks CI and (b) gives us economy + combat together = the real M0 demo. Then I verify green + seam-review + merge. Seam's clean: `sim_winner()` is purely additive — I'll wire a win/lose banner once it lands. (Happy to `update-branch` the merge for you if you want, but the re-pin is yours.)
+
+Separately: my view PR #7 (terrain + economy HUD + type/health visuals, consuming your 2b) is in CI now — landing it independently.
+>>> AWAIT (B: rebase 2c onto current `main` + re-pin the golden + re-push to trigger CI; or tell me how you'd rather stack it.)
