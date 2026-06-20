@@ -19,7 +19,7 @@ git clone --recurse-submodules https://github.com/tc2fh/claude_rts
 git submodule update --init --recursive
 ```
 
-`gdext/godot-cpp` is pinned to the **4.5** branch (matches `compatibility_minimum`).
+`gdext/godot-cpp` is pinned to the **4.5** branch (matches `compatibility_minimum`); `gdext/entt` is pinned to **v3.13.2** (header-only ECS, matching the sim's CMake version) — needed for the default real-sim build.
 
 ## 2. Build the GDExtension
 
@@ -39,9 +39,13 @@ Output lands in `game/bin/` with names matching `game/bin/sim_rts.gdextension`. 
 
 > To run inside the **editor** you need a `target=template_debug` build; exported games use `target=template_release`. CI builds release on both platforms (cross-platform compile gate); build debug locally for editor work.
 
-### Linking the real sim (later)
+### Sim backend (real sim is the default)
 
-Until B's sim lands, `gdext/src/mock_sim.cpp` provides the `sim_abi.h` implementation. When `sim/` is real, build with `use_real_sim=yes` (drops the mock, links `sim/`); see `gdext/SConstruct`.
+The gdext links **B's real deterministic sim by default** — `sim/src` + the pinned `gdext/entt` submodule — so the game runs real movement (and economy/combat as they land). For isolated view work, build the lightweight **mock** instead (no EnTT; `gdext/src/mock_sim.cpp`, which self-disables when the real sim is built):
+
+```bash
+scons platform=macos arch=universal target=template_debug use_real_sim=no   # mock backend
+```
 
 ## 3. Run the game
 
