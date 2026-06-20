@@ -57,7 +57,8 @@ typedef struct {                  /* valid only until the next sim_advance() —
 } SimSnapshot;
 
 typedef enum {
-  CMD_MOVE, CMD_ATTACK, CMD_HARVEST, CMD_BUILD, CMD_TRAIN, CMD_STOP
+  CMD_MOVE, CMD_ATTACK, CMD_HARVEST, CMD_BUILD, CMD_TRAIN, CMD_STOP,
+  CMD_ATTACK_MOVE, CMD_HOLD, CMD_PATROL
 } SimCommandType;
 
 typedef enum {                    /* unit type ids; also the SimCommand.param value for CMD_TRAIN */

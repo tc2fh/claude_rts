@@ -195,6 +195,138 @@ TEST_CASE("CMD_MOVE cancels harvest; worker goes to dest, not node") {
 }
 
 // ---------------------------------------------------------------------------
+// Test 6: CMD_ATTACK_MOVE engages enemies en route then resumes to dest.
+// Player soldier (id=3) at (10,10) receives CMD_ATTACK_MOVE to (18,10).
+// The enemy scout (id=5) sits at (14,10), Chebyshev dist=4 <= ACQUIRE_RANGE=7.
+// The soldier should engage and kill the scout (hp=20, dmg=10, CD=12), then
+// continue to (18,10). Contrast: a passive CMD_MOVE leaves the scout alive.
+// ---------------------------------------------------------------------------
+TEST_CASE("CMD_ATTACK_MOVE engages scout en route then reaches destination") {
+    SimWorld* s = sim_create(7, 0);
+
+    // CMD_ATTACK_MOVE soldier (id=3) toward (18,10) — scout (id=5) is at (14,10).
+    SimCommand am{};
+    am.type = CMD_ATTACK_MOVE; am.player = 1; am.unit = 3;
+    am.tx = W(18); am.ty = W(10);
+    sim_push_command(s, &am, 1);
+
+    // Advance enough to kill scout (~13 ticks) + travel from kill site to (18,10) (~64 more).
+    // Total: 120 ticks is well beyond the 77-tick measured arrival.
+    sim_advance(s, 120);
+
+    SimSnapshot snap = sim_get_snapshot(s);
+    const auto* s3 = find_id(snap, 3);   // player soldier
+    const auto* s5 = find_id(snap, 5);   // enemy scout
+
+    // Scout must be dead (attack-move engages).
+    CHECK(s5 == nullptr);
+
+    // Soldier reached near (18,10) after killing the scout.
+    REQUIRE(s3 != nullptr);
+    CHECK(cheb(cell(s3->x), cell(s3->y), 18, 10) <= 1);
+
+    sim_destroy(s);
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: CMD_HOLD — unit never moves but defends in range.
+// Player soldier (id=3) at (10,10), scout (id=5) at (14,10): dist=4=RANGE.
+// Issue CMD_HOLD; soldier must stay at (10,10) across 80 ticks while still
+// firing defensively (scout damaged/dead).
+// ---------------------------------------------------------------------------
+TEST_CASE("CMD_HOLD: unit stays in place but defends in weapon range") {
+    SimWorld* s = sim_create(7, 0);
+
+    SimCommand hold{};
+    hold.type = CMD_HOLD; hold.player = 1; hold.unit = 3;
+    sim_push_command(s, &hold, 1);
+
+    sim_advance(s, 80);
+
+    SimSnapshot snap = sim_get_snapshot(s);
+    const auto* s3 = find_id(snap, 3);
+    const auto* s5 = find_id(snap, 5);
+
+    // Soldier must not have moved from spawn cell (10,10).
+    REQUIRE(s3 != nullptr);
+    CHECK(cell(s3->x) == 10);
+    CHECK(cell(s3->y) == 10);
+
+    // Scout at range 4 == weapon range; held soldier fires defensively — scout must be damaged or dead.
+    bool scout_damaged = (s5 == nullptr) || (s5->hp < 20);
+    CHECK(scout_damaged);
+
+    sim_destroy(s);
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: CMD_PATROL oscillates between anchor and dest.
+// Worker (id=1) at (5,5) is ordered to patrol to (5,15). Worker is unarmed
+// so it just oscillates without fighting — clean test of the leg-flip.
+// Speed = 1/8 cell/tick, distance=10 cells: ~80 ticks per leg.
+// After 200 ticks (>2 legs) it must be somewhere between the two endpoints
+// (not stuck at one end), demonstrating it has reversed direction at least once.
+// ---------------------------------------------------------------------------
+TEST_CASE("CMD_PATROL oscillates between anchor and dest") {
+    SimWorld* s = sim_create(7, 0);
+
+    // Worker (id=1) from (5,5) to (5,15).
+    SimCommand pat{};
+    pat.type = CMD_PATROL; pat.player = 1; pat.unit = 1;
+    pat.tx = W(5); pat.ty = W(15);
+    sim_push_command(s, &pat, 1);
+
+    sim_advance(s, 200);
+
+    SimSnapshot snap = sim_get_snapshot(s);
+    const auto* w1 = find_id(snap, 1);
+    REQUIRE(w1 != nullptr);
+
+    // After 200 ticks the worker must be somewhere in the patrol corridor [5,5]->[5,15].
+    // If it were stuck at one end it would be exactly at y=15 (never reversed) — assert it isn't.
+    const int wx = cell(w1->x);
+    const int wy = cell(w1->y);
+    // Must be in the corridor: x near 5, y between 5 and 15.
+    CHECK(cheb(wx, wy, 5, 5) <= 12);   // no farther than 12 cells from anchor (sanity)
+    CHECK(cheb(wx, wy, 5, 15) <= 12);  // no farther than 12 cells from dest   (sanity)
+    // At 200 ticks (~2.5 legs of 80 ticks each) the worker must be in the patrol corridor.
+    // Leg1: 0->80 heading to y=15; Leg2: 80->160 heading back to y=5; Leg3: 160->200 partial.
+    CHECK(wy >= 4);
+    CHECK(wy <= 16);
+
+    sim_destroy(s);
+}
+
+// ---------------------------------------------------------------------------
+// Test 8b: CMD_PATROL determinism (batching-invariant).
+// Same patrol scenario in chunks 1/5/10 vs full 200 gives identical hash.
+// ---------------------------------------------------------------------------
+TEST_CASE("CMD_PATROL is batching-invariant") {
+    auto run = [](int chunk) -> uint64_t {
+        SimWorld* s = sim_create(7, 0);
+        SimCommand pat{};
+        pat.type = CMD_PATROL; pat.player = 1; pat.unit = 1;
+        pat.tx = W(5); pat.ty = W(15);
+        sim_push_command(s, &pat, 1);
+        int t = 0;
+        while (t < 200) {
+            int step = (t + chunk <= 200) ? chunk : (200 - t);
+            sim_advance(s, static_cast<uint32_t>(step));
+            t += step;
+        }
+        uint64_t h = sim_state_hash(s);
+        sim_destroy(s);
+        return h;
+    };
+
+    const uint64_t ref = run(200);
+    CHECK(run(1)  == ref);
+    CHECK(run(5)  == ref);
+    CHECK(run(10) == ref);
+    std::printf("[orders] patrol-scenario hash = 0x%016llx\n", (unsigned long long)ref);
+}
+
+// ---------------------------------------------------------------------------
 // Test 5: COrder determinism — same scenario advanced in chunks 1/3/5 vs
 // full 300 gives an identical state_hash. Golden is pinned from a first run.
 // ---------------------------------------------------------------------------

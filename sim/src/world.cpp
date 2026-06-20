@@ -82,6 +82,23 @@ void World::step() {
     publish_snapshot();
 }
 
+// Helper: complete the order for a unit that has just exhausted its path.
+// For ORD_MOVE: always transition to ORD_STOP (path is only cleared by arrival).
+// For ORD_ATTACK_MOVE/ORD_PATROL: only transition when the unit is actually at the
+// destination cell — sys_combat may clear the path mid-flight (to fire in range)
+// and we must not treat that as "arrived at goal".
+static void maybe_complete_order(COrder& o, const CPos& p) {
+    const int cx = Map::world_to_cell(p.x), cy = Map::world_to_cell(p.y);
+    if (o.kind == ORD_MOVE) {
+        o.kind = ORD_STOP;
+    } else if (o.kind == ORD_ATTACK_MOVE) {
+        if (cx == o.dest.x && cy == o.dest.y) o.kind = ORD_STOP;
+    } else if (o.kind == ORD_PATROL) {
+        const GridPos ep = o.to_dest ? o.dest : o.anchor;
+        if (cx == ep.x && cy == ep.y) o.to_dest = !o.to_dest;  // reached endpoint; head back next tick
+    }
+}
+
 void World::sys_movement() {
     std::vector<std::pair<EntityId, entt::entity>> order;
     for (auto e : reg_.view<CId, CMobile>()) order.push_back({reg_.get<CId>(e).id, e});
@@ -92,11 +109,7 @@ void World::sys_movement() {
         auto& u = reg_.get<CUnit>(e);
         if (m.next >= m.path.size()) {
             u.state = SIM_STATE_IDLE;
-            // A unit that finished a move becomes defensive
-            if (reg_.all_of<COrder>(e)) {
-                auto& o = reg_.get<COrder>(e);
-                if (o.kind == ORD_MOVE) o.kind = ORD_STOP;
-            }
+            if (reg_.all_of<COrder>(e)) maybe_complete_order(reg_.get<COrder>(e), p);
             continue;
         }
         const fix tx = Map::cell_to_world(m.path[m.next].x);
@@ -107,11 +120,7 @@ void World::sys_movement() {
             ++m.next;
             if (m.next >= m.path.size()) {
                 u.state = SIM_STATE_IDLE;
-                // A unit that finished a move becomes defensive
-                if (reg_.all_of<COrder>(e)) {
-                    auto& o = reg_.get<COrder>(e);
-                    if (o.kind == ORD_MOVE) o.kind = ORD_STOP;
-                }
+                if (reg_.all_of<COrder>(e)) maybe_complete_order(reg_.get<COrder>(e), p);
             }
         } else {
             p.x += fix_clamp(dx, -m.speed, m.speed);
@@ -188,6 +197,44 @@ void World::apply_commands_for(std::uint64_t t) {
                     if (reg_.all_of<CHarvester>(e)) reg_.get<CHarvester>(e).phase = HARV_IDLE;
                 };
                 set_order_attack(ue, o);
+            }
+        }
+        else if (c.type == CMD_ATTACK_MOVE) {
+            for (auto e : reg_.view<CId, CMobile, CPos>()) {
+                if (reg_.get<CId>(e).id != c.unit) continue;
+                const auto& p = reg_.get<CPos>(e);
+                GridPos start{ Map::world_to_cell(p.x), Map::world_to_cell(p.y) };
+                GridPos goal { Map::world_to_cell(c.tx), Map::world_to_cell(c.ty) };
+                COrder o; o.kind = ORD_ATTACK_MOVE; o.dest = goal;
+                set_order(e, o);
+                auto& m = reg_.get<CMobile>(e);
+                m.path = find_path(map_, start, goal);
+                m.next = m.path.size() > 1 ? 1 : m.path.size();
+                break;
+            }
+        }
+        else if (c.type == CMD_HOLD) {
+            for (auto e : reg_.view<CId, CMobile>()) {
+                if (reg_.get<CId>(e).id != c.unit) continue;
+                COrder o; o.kind = ORD_HOLD;
+                set_order(e, o);
+                auto& m = reg_.get<CMobile>(e);
+                m.path.clear(); m.next = 0;
+                break;
+            }
+        }
+        else if (c.type == CMD_PATROL) {
+            for (auto e : reg_.view<CId, CMobile, CPos>()) {
+                if (reg_.get<CId>(e).id != c.unit) continue;
+                const auto& p = reg_.get<CPos>(e);
+                GridPos start{ Map::world_to_cell(p.x), Map::world_to_cell(p.y) };
+                GridPos goal { Map::world_to_cell(c.tx), Map::world_to_cell(c.ty) };
+                COrder o; o.kind = ORD_PATROL; o.dest = goal; o.anchor = start; o.to_dest = true;
+                set_order(e, o);
+                auto& m = reg_.get<CMobile>(e);
+                m.path = find_path(map_, start, goal);
+                m.next = m.path.size() > 1 ? 1 : m.path.size();
+                break;
             }
         }
         else if (c.type == CMD_HARVEST) {
@@ -394,7 +441,42 @@ void World::sys_combat() {
             continue;
         }
 
-        // Defensive (ORD_STOP / ORD_HOLD; also ORD_ATTACK_MOVE/ORD_PATROL until Tasks 3-4):
+        // Aggressive move (attack-move / patrol): acquire + chase enemies in ACQUIRE_RANGE; when none, advance toward the order goal.
+        if (kind == ORD_ATTACK_MOVE || kind == ORD_PATROL) {
+            auto& o = reg_.get<COrder>(e);
+            EntityId acquired = 0; int best = ACQUIRE_RANGE + 1;
+            for (auto& [oid, oe] : cand) {
+                const auto& ou = reg_.get<CUnit>(oe);
+                if (ou.owner == u.owner || ou.owner == 0) continue;
+                const auto& op = reg_.get<CPos>(oe);
+                const int d = cheb(mx, my, Map::world_to_cell(op.x), Map::world_to_cell(op.y));
+                if (d <= ACQUIRE_RANGE && d < best) { best = d; acquired = oid; }
+            }
+            if (acquired != 0) {
+                w.target = acquired;
+                auto te = find_by_id(acquired);
+                const auto& tp = reg_.get<CPos>(te);
+                const int d = cheb(mx, my, Map::world_to_cell(tp.x), Map::world_to_cell(tp.y));
+                if (d <= w.range_cells) {
+                    m.path.clear(); m.next = 0;
+                    if (w.timer == 0) { reg_.get<CUnit>(te).hp -= w.damage; w.timer = w.cooldown; emit_event(SIM_EVT_ATTACK, id, acquired); }
+                } else {
+                    m.path = find_path(map_, {mx, my}, {Map::world_to_cell(tp.x), Map::world_to_cell(tp.y)});
+                    m.next = m.path.size() > 1 ? 1 : m.path.size();
+                }
+            } else {
+                w.target = 0;
+                const GridPos goal = (kind == ORD_PATROL && !o.to_dest) ? o.anchor : o.dest;
+                const bool heading = !m.path.empty() && m.path.back().x == goal.x && m.path.back().y == goal.y;
+                if (!heading && (mx != goal.x || my != goal.y)) {
+                    m.path = find_path(map_, {mx, my}, goal);
+                    m.next = m.path.size() > 1 ? 1 : m.path.size();
+                }
+            }
+            continue;
+        }
+
+        // Defensive (ORD_STOP / ORD_HOLD):
         // attack only what is already within weapon range; never move toward an enemy.
         EntityId acquired = 0; int best = w.range_cells + 1;
         for (auto& [oid, oe] : cand) {
