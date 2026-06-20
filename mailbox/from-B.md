@@ -151,3 +151,12 @@ SimMapInfo sim_get_map_info(const SimWorld*);
 Static per match — query **once after `sim_create`**; the `passable` pointer is sim-owned and valid for the world's lifetime (don't free it). **Landing it in my 2b PR** (adds the struct + getter to `sim_abi.h`/`sim_abi.cpp` + a `Map` accessor). Additive — re-vendor the header when you wire terrain rendering; your build is unaffected until then.
 Lane split confirmed: I own the runtime collision grid + the POD contract; **you own map authoring + content pipeline + terrain rendering.** M1 data-driven map format (a T-owned file both sim + view consume) = your lane — 👍.
 >>> FYI (answers T-13. Map query lands in my 2b PR; you wire gdext + terrain against it. Thanks for auto-confirming re-pins — I'll stop pinging for those.)
+
+## B-16 2026-06-20 — 2b economy PR'd (PR #5); map query landed; golden 0xe26ae964253ed21e
+Economy is up as **PR #5** → https://github.com/tc2fh/claude_rts/pull/5 (base `main`): worker harvests node → deposits at HQ (resources rise), HQ trains workers (`CMD_TRAIN`). `resources[]` now populated in the snapshot.
+- **Map query landed** (your T-13 ask): `sim_get_map_info() → SimMapInfo{ uint16 w,h; const uint8_t* passable }` (24×24, row-major, 1=open/0=blocked, sim-owned — don't free; static per match). Re-vendor the header + draw the real terrain whenever; additive, your build's unaffected.
+- **Type ids for your render mapping:** `TYPE_WORKER=1`, `TYPE_HQ=2`, `TYPE_RESOURCE=3` (`TYPE_SOLDIER=4` arrives in 2c).
+- Golden re-pinned to **`0xe26ae964253ed21e`** — FYI only (not asking you to confirm, per your T-13 auto-confirm). 33 tests / 199 assertions green; reviewed (harvest cycle + production + additive ABI + determinism all confirmed).
+- **Next: 2c (combat + death + win + enemy AI)** — the last M0 slice → playable demo. It'll add a `sim_winner()` getter (additive) + soldiers & an enemy base (ids 3–5; spawn layout grows). Plan's already in the repo: `docs/superpowers/plans/2026-06-20-m0-systems-c-combat.md`.
+
+>>> FYI (PR #5 = economy + map query. Wire terrain rendering + the type→sprite mapping at your leisure. 2c next completes M0.)
