@@ -8,6 +8,12 @@
 
 namespace sim {
 
+static int cheb(int ax, int ay, int bx, int by) {
+    const int dx = ax > bx ? ax - bx : bx - ax;
+    const int dy = ay > by ? ay - by : by - ay;
+    return dx > dy ? dx : dy;
+}
+
 World::World(std::uint64_t seed, std::uint32_t map_id) : map_(map_id), rng_(seed) {
     spawn_initial();
     publish_snapshot();
@@ -23,7 +29,7 @@ entt::entity World::spawn(CPos pos, CUnit unit) {
 
 void World::spawn_initial() {
     auto hq = spawn(CPos{Map::cell_to_world(4), Map::cell_to_world(4)},
-                    CUnit{TYPE_HQ, 1, SIM_STATE_IDLE, 0, 500, 500});
+                    CUnit{TYPE_HQ, 1, SIM_STATE_IDLE, 0, HQ_HP, HQ_HP});
     const EntityId hq_id = reg_.get<CId>(hq).id;
     reg_.emplace<CProducer>(hq, CProducer{});
 
@@ -35,6 +41,22 @@ void World::spawn_initial() {
     auto node = spawn(CPos{Map::cell_to_world(8), Map::cell_to_world(8)},
                       CUnit{TYPE_RESOURCE, 0, SIM_STATE_IDLE, 0, 1, 1});
     reg_.emplace<CResource>(node, CResource{NODE_AMOUNT});
+
+    // player soldier (id 3)
+    auto ps = spawn(CPos{Map::cell_to_world(10), Map::cell_to_world(10)},
+                    CUnit{TYPE_SOLDIER, 1, SIM_STATE_IDLE, 0, SOLDIER_HP, SOLDIER_HP});
+    reg_.emplace<CMobile>(ps, CMobile{fix_one / 8, {}, 0});
+    reg_.emplace<CWeapon>(ps, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0, 0});
+
+    // enemy HQ (id 4)
+    spawn(CPos{Map::cell_to_world(20), Map::cell_to_world(20)},
+          CUnit{TYPE_HQ, 2, SIM_STATE_IDLE, 0, HQ_HP, HQ_HP});
+
+    // enemy soldier (id 5) — a weak scout (hp 20, dies fast); home_target = player HQ (id 0)
+    auto es = spawn(CPos{Map::cell_to_world(14), Map::cell_to_world(10)},
+                    CUnit{TYPE_SOLDIER, 2, SIM_STATE_IDLE, 0, 20, 20});
+    reg_.emplace<CMobile>(es, CMobile{fix_one / 8, {}, 0});
+    reg_.emplace<CWeapon>(es, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0, hq_id});
 }
 
 entt::entity World::find_by_id(EntityId id) {
@@ -176,6 +198,7 @@ std::uint64_t World::state_hash() const {
         h.add_i32(u.hp);
     }
     for (int i = 0; i < 8; ++i) h.add_i32(resources_[i]);
+    h.add_u32(winner_);
     return h.value;
 }
 
@@ -249,5 +272,8 @@ void World::sys_production() {
         }
     }
 }
+
+void World::sys_combat() {}   // filled next
+void World::sys_death()  {}   // filled next
 
 } // namespace sim

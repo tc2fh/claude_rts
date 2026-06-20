@@ -12,8 +12,8 @@ TEST_CASE("ABI lifecycle + advance") {
 TEST_CASE("ABI snapshot reflects entities") {
     SimWorld* s = sim_create(7, 0);
     SimSnapshot snap = sim_get_snapshot(s);
-    CHECK(snap.count == 3);          // HQ, worker, resource node
-    CHECK(snap.entities[0].hp_max == 500);   // HQ hp_max
+    CHECK(snap.count == 6);          // HQ, worker, node, player soldier, enemy HQ, enemy soldier
+    CHECK(snap.entities[0].hp_max == 200);   // HQ hp_max (HQ_HP)
     CHECK(snap.tick == 0);
     sim_destroy(s);
 }

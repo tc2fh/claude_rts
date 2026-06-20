@@ -3,10 +3,11 @@
 
 using namespace sim;
 
-TEST_CASE("world spawns the M0 economy layout at tick 0") {
+TEST_CASE("world spawns the full M0 layout at tick 0") {
     World w(7, 0);
     CHECK(w.tick() == 0);
-    CHECK(w.entity_count() == 3);   // HQ, worker, resource node
+    CHECK(w.entity_count() == 6);   // HQ, worker, node, player soldier, enemy HQ, enemy soldier
+    CHECK(w.winner() == 0);
 }
 
 TEST_CASE("advance increments the tick counter") {
