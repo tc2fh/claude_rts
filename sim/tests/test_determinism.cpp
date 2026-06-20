@@ -11,7 +11,7 @@ namespace {
 std::uint64_t run_scenario(const std::vector<std::uint32_t>& chunks) {
     World w(20260620ull, 0);
     struct Entry { std::uint64_t t; std::uint32_t unit; };
-    const Entry log[] = {{2, 0}, {5, 1}, {9, 2}};
+    const Entry log[] = {{2, 0}, {5, 1}};
     for (const auto& e : log) {
         SimCommand c{}; c.type = CMD_STOP; c.player = 1; c.unit = e.unit;
         w.push_command(c, e.t);
@@ -38,5 +38,7 @@ TEST_CASE("golden hash is stable across platforms") {
     std::printf("[determinism] scenario hash = 0x%016llx\n", (unsigned long long)h);
     // GOLDEN: pinned after first green run. MUST match on macOS-arm64 and Windows-x64.
     // A mismatch across OSes is a determinism bug to FIX, not to re-pin.
-    CHECK(h == 0x63c49d731e0963c8ull);
+    // Re-pinned for M0-systems-2a Task 3: 2-unit world, no drift, CMobile.
+    // MUST match on macOS-arm64 and Windows-x64. A mismatch across OSes is a determinism bug.
+    CHECK(h == 0x708f9a7301753bb6ull);
 }
