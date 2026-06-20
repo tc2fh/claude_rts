@@ -1,10 +1,10 @@
 extends Node2D
 ## claude_rts — M0 view harness.
 ##
-## Drives the (currently mock) sim through the SimBridge GDExtension at a fixed
-## 24 Hz, renders interpolated snapshot entities, and turns mouse input into
-## box-selection + move commands. All sim access goes through SimBridge — the
-## view never touches sim internals or fixed-point math directly.
+## Drives B's deterministic sim through the SimBridge GDExtension at a fixed
+## 24 Hz, renders the static map terrain + interpolated snapshot entities, and
+## turns mouse input into box-selection + move commands. All sim access goes
+## through SimBridge — the view never touches sim internals or fixed-point math.
 
 const TICK_HZ := 24.0
 const TICK_DT := 1.0 / TICK_HZ
@@ -12,6 +12,12 @@ const PX_PER_UNIT := 32.0   ## world units -> pixels
 const UNIT_RADIUS := 10.0   ## draw radius (px)
 const SEED := 1234
 const MAP_ID := 0
+
+# Entity type ids (from B's sim — mailbox B-16). TYPE_SOLDIER arrives in 2c.
+const TYPE_WORKER := 1
+const TYPE_HQ := 2
+const TYPE_RESOURCE := 3
+const TYPE_SOLDIER := 4
 
 var _sim = null             ## untyped: methods are GDExtension-provided (dynamic dispatch)
 var _accum := 0.0
@@ -21,6 +27,11 @@ var _alpha := 0.0
 var _ids: PackedInt32Array = PackedInt32Array()
 var _render: PackedFloat32Array = PackedFloat32Array()  # [x, y, facing_rad] * n (world units)
 var _meta: PackedInt32Array = PackedInt32Array()        # [type, owner, state, hp, hp_max] * n
+
+# Static map geometry (queried once from the sim after create()).
+var _map_w := 0
+var _map_h := 0
+var _passable: PackedByteArray = PackedByteArray()
 
 var _selected := {}                 # id -> true
 var _dragging := false
@@ -38,6 +49,10 @@ func _ready() -> void:
 		return
 	_sim = ClassDB.instantiate("SimBridge")
 	_sim.create(SEED, MAP_ID)
+	var msz: Vector2i = _sim.map_size()
+	_map_w = msz.x
+	_map_h = msz.y
+	_passable = _sim.map_passable()
 
 func _process(delta: float) -> void:
 	if _sim == null:
@@ -51,14 +66,16 @@ func _process(delta: float) -> void:
 	_ids = _sim.entity_ids()
 	_render = _sim.render_state(_alpha)
 	_meta = _sim.entity_meta()
-	_hud.set_stats(int(_sim.tick()), int(_sim.get_resource(1)))
+	_hud.set_stats(int(_sim.tick()), int(_sim.get_resource(1)), _selected.size())
 	queue_redraw()
 
 func _world_px(i: int) -> Vector2:
 	return Vector2(_render[i * 3 + 0], _render[i * 3 + 1]) * PX_PER_UNIT
 
 func _draw() -> void:
-	# Selection marquee (drawn in world space; get_global_mouse_position is camera-correct).
+	_draw_terrain()
+
+	# Selection marquee (world space; get_global_mouse_position is camera-correct).
 	if _dragging:
 		var r := _rect_from(_drag_start, _drag_now)
 		draw_rect(r, Color(0.3, 0.8, 1.0, 0.15), true)
@@ -67,14 +84,56 @@ func _draw() -> void:
 	var n := _ids.size()
 	for i in n:
 		var p := _world_px(i)
-		var col := _owner_color(_meta[i * 5 + 1])
-		draw_circle(p, UNIT_RADIUS, col)
-		# Facing tick.
-		var f: float = _render[i * 3 + 2]
-		draw_line(p, p + Vector2(cos(f), sin(f)) * UNIT_RADIUS, Color.WHITE, 1.5)
-		# Selection ring.
+		var type_id := _meta[i * 5 + 0]
+		var owner_id := _meta[i * 5 + 1]
+		var col := _owner_color(owner_id)
+		_draw_entity(p, type_id, col, _render[i * 3 + 2])
 		if _selected.has(_ids[i]):
-			draw_arc(p, UNIT_RADIUS + 3.0, 0.0, TAU, 24, Color(1.0, 1.0, 0.25, 0.9), 2.0)
+			draw_arc(p, UNIT_RADIUS + 4.0, 0.0, TAU, 24, Color(1.0, 1.0, 0.25, 0.9), 2.0)
+		if owner_id != 0:   # health bar for owned units (skip neutral resource nodes)
+			_draw_health_bar(p, _meta[i * 5 + 3], _meta[i * 5 + 4])
+
+func _draw_terrain() -> void:
+	if _map_w <= 0 or _passable.size() < _map_w * _map_h:
+		return
+	var cell := PX_PER_UNIT
+	var bounds := Rect2(Vector2.ZERO, Vector2(_map_w, _map_h) * cell)
+	draw_rect(bounds, Color(0.10, 0.12, 0.16), true)                                       # ground
+	for y in _map_h:
+		for x in _map_w:
+			if _passable[y * _map_w + x] == 0:
+				draw_rect(Rect2(Vector2(x, y) * cell, Vector2(cell, cell)), Color(0.30, 0.32, 0.40), true)  # wall
+	var grid := Color(1, 1, 1, 0.05)
+	for gx in _map_w + 1:
+		draw_line(Vector2(gx * cell, 0.0), Vector2(gx * cell, _map_h * cell), grid, 1.0)
+	for gy in _map_h + 1:
+		draw_line(Vector2(0.0, gy * cell), Vector2(_map_w * cell, gy * cell), grid, 1.0)
+	draw_rect(bounds, Color(1, 1, 1, 0.15), false, 1.5)                                     # border
+
+func _draw_entity(p: Vector2, type_id: int, col: Color, facing: float) -> void:
+	match type_id:
+		TYPE_HQ:
+			var hs := Vector2(UNIT_RADIUS, UNIT_RADIUS) * 1.5
+			draw_rect(Rect2(p - hs, hs * 2.0), col, true)
+			draw_rect(Rect2(p - hs, hs * 2.0), Color(0, 0, 0, 0.4), false, 2.0)
+		TYPE_RESOURCE:
+			draw_colored_polygon(PackedVector2Array([
+				p + Vector2(0.0, -UNIT_RADIUS), p + Vector2(UNIT_RADIUS, 0.0),
+				p + Vector2(0.0, UNIT_RADIUS), p + Vector2(-UNIT_RADIUS, 0.0)]),
+				Color(0.95, 0.82, 0.25))
+		_:
+			draw_circle(p, UNIT_RADIUS, col)
+			draw_line(p, p + Vector2(cos(facing), sin(facing)) * UNIT_RADIUS, Color.WHITE, 1.5)
+
+func _draw_health_bar(p: Vector2, hp: int, hp_max: int) -> void:
+	if hp_max <= 0:
+		return
+	var frac := clampf(float(hp) / float(hp_max), 0.0, 1.0)
+	var w := UNIT_RADIUS * 2.0
+	var tl := p + Vector2(-UNIT_RADIUS, -UNIT_RADIUS - 7.0)
+	draw_rect(Rect2(tl, Vector2(w, 3.0)), Color(0, 0, 0, 0.6), true)
+	var bar := Color(0.3, 0.9, 0.35) if frac > 0.3 else Color(0.9, 0.3, 0.25)
+	draw_rect(Rect2(tl, Vector2(w * frac, 3.0)), bar, true)
 
 func _owner_color(owner_id: int) -> Color:
 	match owner_id:
