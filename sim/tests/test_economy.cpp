@@ -57,6 +57,6 @@ TEST_CASE("CMD_TRAIN with insufficient resources does nothing") {
     sim_push_command(s, &tr, 1);
     sim_advance(s, 60);
     CHECK(sim_get_snapshot(s).resources[1] == 0);
-    CHECK(sim_get_snapshot(s).count == count_before);                // no spawn
+    CHECK(sim_get_snapshot(s).count <= count_before);               // no spawn (deaths may reduce count)
     sim_destroy(s);
 }

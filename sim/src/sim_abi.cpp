@@ -27,5 +27,6 @@ SimMapInfo sim_get_map_info(const SimWorld* h) {
     info.passable = m.passable_data();
     return info;
 }
+uint8_t sim_winner(const SimWorld* h) { return w(h)->winner(); }
 
 }

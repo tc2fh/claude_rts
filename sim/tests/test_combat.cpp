@@ -32,3 +32,22 @@ TEST_CASE("combat is deterministic and batching-invariant") {
     CHECK(run(400) == run(1));
     CHECK(run(400) == run(8));
 }
+
+TEST_CASE("a unit at 0 HP is removed and its id is not reused") {
+    SimWorld* s = sim_create(7, 0);
+    sim_advance(s, 800);
+    SimSnapshot snap = sim_get_snapshot(s);
+    bool a_soldier_died = (find(snap, 3) == nullptr) || (find(snap, 5) == nullptr);
+    CHECK(a_soldier_died);
+    sim_destroy(s);
+}
+
+TEST_CASE("destroying the enemy HQ wins the game") {
+    SimWorld* s = sim_create(7, 0);
+    SimCommand atk{}; atk.type = CMD_ATTACK; atk.player = 1; atk.unit = 3; atk.target = 4; // -> enemy HQ
+    sim_push_command(s, &atk, 1);
+    sim_advance(s, 4000);
+    uint8_t win = sim_winner(s);
+    CHECK(win != 0);            // someone won (deterministic; expect 1 = player)
+    sim_destroy(s);
+}

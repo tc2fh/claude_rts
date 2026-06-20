@@ -75,6 +75,7 @@ void World::step() {
     sys_production();
     sys_combat();
     sys_movement();
+    sys_death();
     publish_snapshot();
 }
 
@@ -323,6 +324,19 @@ void World::sys_combat() {
     }
 }
 
-void World::sys_death()  {}   // filled next
+void World::sys_death() {
+    std::vector<std::pair<EntityId, entt::entity>> order;
+    for (auto e : reg_.view<CId, CUnit>()) order.push_back({reg_.get<CId>(e).id, e});
+    std::sort(order.begin(), order.end());
+    std::vector<entt::entity> dead;
+    for (auto& [id, e] : order) {
+        const auto& u = reg_.get<CUnit>(e);
+        if (u.hp <= 0) {
+            if (u.type == TYPE_HQ && winner_ == 0) winner_ = (u.owner == 1) ? 2 : 1;
+            dead.push_back(e);
+        }
+    }
+    for (auto e : dead) reg_.destroy(e);   // ids are not recycled (next_id_ only increments)
+}
 
 } // namespace sim

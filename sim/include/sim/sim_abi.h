@@ -84,6 +84,7 @@ void       sim_push_command(SimWorld*, const SimCommand*, uint64_t exec_tick); /
 SimSnapshot sim_get_snapshot(const SimWorld*);                      /* latest published, read-only */
 uint64_t   sim_state_hash(const SimWorld*);                         /* determinism / desync oracle + test target */
 SimMapInfo sim_get_map_info(const SimWorld*);                       /* static map; query once after sim_create */
+uint8_t    sim_winner(const SimWorld*);                             /* 0=ongoing, 1=player1 wins, 2=player2 wins */
 
 #ifdef __cplusplus
 }
