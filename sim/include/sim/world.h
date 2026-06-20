@@ -23,6 +23,7 @@ public:
     void push_command(const SimCommand& cmd, std::uint64_t exec_tick);
     const SimSnapshot& snapshot() const { return front_; }
     std::uint64_t state_hash() const;
+    const Map& map() const { return map_; }
 
 private:
     void step();

@@ -20,6 +20,10 @@ public:
     static fix cell_to_world(int c) { return fix_from_int(c); }   // 1 cell == 1 world unit
     static int world_to_cell(fix p) { return static_cast<int>(p >> FIX_FRAC); }
 
+    const std::uint8_t* passable_data() const {
+        return reinterpret_cast<const std::uint8_t*>(passable_.data());
+    }
+
 private:
     int w_, h_;
     std::vector<char> passable_;
