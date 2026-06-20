@@ -1,6 +1,6 @@
 # gdext/ — GDExtension bridge (owner: T)
 
-Wraps the C-ABI sim (`../sim/include/sim_abi.h`) as a Godot class, **`SimBridge`**, that the `game/` project drives. Built with **godot-cpp + SCons**.
+Wraps the C-ABI sim (`../sim/include/sim/sim_abi.h`, `#include <sim/sim_abi.h>`) as a Godot class, **`SimBridge`**, that the `game/` project drives. Built with **godot-cpp + SCons**.
 
 - `src/register_types.{h,cpp}` — GDExtension entry point + class registration.
 - `src/sim_bridge.{h,cpp}` — `SimBridge`: owns the `prev`/`curr` snapshot copies (the sim's pointer dies on each `advance`), interpolates between ticks, and exposes typed accessors (`PackedFloat32Array` / `PackedInt32Array`) plus command calls to GDScript.

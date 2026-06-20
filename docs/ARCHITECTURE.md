@@ -29,7 +29,7 @@ Lockstep desyncs if any client computes a different result, so the sim is held t
 
 The view may convert `fix64 → float` for rendering, but that float is **render-only** and never re-enters the sim.
 
-## 4. The model↔view seam — `sim/include/sim_abi.h`
+## 4. The model↔view seam — `sim/include/sim/sim_abi.h`
 
 A small **C ABI** is the only cross-lane coupling. The sim owns the contract; the view owns the marshaling.
 

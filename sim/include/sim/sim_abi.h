@@ -1,11 +1,13 @@
 /*
- * sim_abi.h — claude_rts model<->view seam (C ABI).
+ * sim/sim_abi.h — claude_rts model<->view seam (C ABI).
  *
- * CONTRACT OWNER: B (sim lane). This is the single source of truth for the
- * snapshot / command POD layouts and the lifecycle calls that the view (gdext/)
- * consumes. v0 was transcribed from mailbox entry B-4 (+ the B-5 lifetime note)
- * by T to bootstrap the build; B's sim/ PR refines it IN PLACE. T owns only the
+ * CONTRACT OWNER: B (sim lane). Single source of truth for the snapshot/command
+ * POD layouts and lifecycle calls the view (gdext/) consumes. Materialized by T
+ * to bootstrap the build (mailbox B-4/B-5 ABI v0 + B-7 canonical state bitflags
+ * and this namespaced path); B's sim/ PR refines it IN PLACE. T owns only the
  * marshaling that consumes this header, never the contract.
+ *
+ * Include as:  #include <sim/sim_abi.h>   (add sim/include to the include path)
  *
  * Determinism: world units are fixed-point Q32.32 in int64 — sim-internal AND
  * across this ABI. The view converts fix64 -> float for RENDERING ONLY and must
@@ -23,16 +25,18 @@ extern "C" {
 typedef int64_t fix64_t;          /* Q32.32 fixed-point */
 #define SIM_FIX_SHIFT 32
 
-/* Entity state bitflags (the `state` field).
- * PROVISIONAL — B to finalize the canonical set in the sim/ PR; the view keys
- * its anim/render mapping off these names, so only the *values* may change. */
+/* SimEntitySnapshot.state — combinable bitflags (canonical, mailbox B-7).
+ * Combos are intentional: e.g. MOVING|CARRYING = a worker hauling. Map anims
+ * off the bits. M0 emits IDLE/MOVING/ATTACKING/HARVESTING/CARRYING/DEAD;
+ * BUILDING arrives with production. */
 enum {
-  SIM_STATE_IDLE    = 0u,
-  SIM_STATE_MOVING  = 1u << 0,
-  SIM_STATE_ATTACK  = 1u << 1,
-  SIM_STATE_HARVEST = 1u << 2,
-  SIM_STATE_BUILD   = 1u << 3,
-  SIM_STATE_DEAD    = 1u << 4
+  SIM_STATE_IDLE       = 0,
+  SIM_STATE_MOVING     = 1u << 0,
+  SIM_STATE_ATTACKING  = 1u << 1,
+  SIM_STATE_HARVESTING = 1u << 2,
+  SIM_STATE_CARRYING   = 1u << 3,
+  SIM_STATE_BUILDING   = 1u << 4,  /* structure under construction / worker constructing */
+  SIM_STATE_DEAD       = 1u << 5
 };
 
 typedef struct {                  /* one per live entity per published frame (AoS, POD) */

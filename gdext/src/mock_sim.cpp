@@ -7,7 +7,7 @@
 // use_real_sim=yes), so it can coexist with the real sim during the handoff.
 #ifndef SIM_RTS_USE_REAL_SIM
 
-#include "sim_abi.h"
+#include <sim/sim_abi.h>
 
 #include <cstddef>
 #include <cstdint>

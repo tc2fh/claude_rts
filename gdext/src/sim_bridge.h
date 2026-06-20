@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "sim_abi.h"
+#include <sim/sim_abi.h>
 
 namespace godot {
 
