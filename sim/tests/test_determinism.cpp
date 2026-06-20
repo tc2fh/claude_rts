@@ -37,6 +37,6 @@ TEST_CASE("movement replay is batching-invariant") {
 TEST_CASE("movement golden hash is stable across platforms") {
     std::uint64_t h = run_scenario({200});
     std::printf("[determinism] movement scenario hash = 0x%016llx\n", (unsigned long long)h);
-    // GOLDEN: pin after first green run; MUST match on macOS-arm64 + Windows-x64 + Linux.
-    CHECK(h == 0x1db7f53422dea2e9ull);
+    // GOLDEN: pinned for M0 economy layout (HQ id=0, worker id=1, node id=2).
+    CHECK(h == 0xd9c0dfbb723d9f4dull);
 }

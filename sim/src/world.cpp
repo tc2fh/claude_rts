@@ -1,5 +1,6 @@
 #include "sim/world.h"
 #include "sim/components.h"
+#include "sim/constants.h"
 #include "sim/hash.h"
 #include "sim/pathfind.h"
 #include <algorithm>
@@ -12,21 +13,33 @@ World::World(std::uint64_t seed, std::uint32_t map_id) : map_(map_id), rng_(seed
     publish_snapshot();
 }
 
-EntityId World::spawn(CPos pos, CMobile mob, CUnit unit) {
+entt::entity World::spawn(CPos pos, CUnit unit) {
     auto e = reg_.create();
-    EntityId id = next_id_++;
-    reg_.emplace<CId>(e, CId{id});
+    reg_.emplace<CId>(e, CId{next_id_++});
     reg_.emplace<CPos>(e, pos);
-    reg_.emplace<CMobile>(e, std::move(mob));
     reg_.emplace<CUnit>(e, unit);
-    return id;
+    return e;
 }
 
 void World::spawn_initial() {
-    const fix speed = fix_one / 8;   // 0.125 cell/tick
-    CUnit u{/*type*/1, /*owner*/1, /*state*/SIM_STATE_IDLE, /*facing*/0, /*hp*/100, /*hp_max*/100};
-    spawn(CPos{Map::cell_to_world(2), Map::cell_to_world(2)}, CMobile{speed, {}, 0}, u);
-    spawn(CPos{Map::cell_to_world(3), Map::cell_to_world(3)}, CMobile{speed, {}, 0}, u);
+    auto hq = spawn(CPos{Map::cell_to_world(4), Map::cell_to_world(4)},
+                    CUnit{TYPE_HQ, 1, SIM_STATE_IDLE, 0, 500, 500});
+    const EntityId hq_id = reg_.get<CId>(hq).id;
+    reg_.emplace<CProducer>(hq, CProducer{});
+
+    auto wk = spawn(CPos{Map::cell_to_world(5), Map::cell_to_world(5)},
+                    CUnit{TYPE_WORKER, 1, SIM_STATE_IDLE, 0, 40, 40});
+    reg_.emplace<CMobile>(wk, CMobile{fix_one / 8, {}, 0});
+    reg_.emplace<CHarvester>(wk, CHarvester{HARV_IDLE, 0, 0, hq_id, 0});
+
+    auto node = spawn(CPos{Map::cell_to_world(8), Map::cell_to_world(8)},
+                      CUnit{TYPE_RESOURCE, 0, SIM_STATE_IDLE, 0, 1, 1});
+    reg_.emplace<CResource>(node, CResource{NODE_AMOUNT});
+}
+
+entt::entity World::find_by_id(EntityId id) {
+    for (auto e : reg_.view<CId>()) if (reg_.get<CId>(e).id == id) return e;
+    return entt::null;
 }
 
 void World::advance(std::uint32_t ticks) {
@@ -114,7 +127,7 @@ void World::publish_snapshot() {
     front_.tick = tick_;
     front_.entities = out.data();
     front_.count = static_cast<std::uint32_t>(out.size());
-    for (int i = 0; i < 8; ++i) front_.resources[i] = 0;
+    for (int i = 0; i < 8; ++i) front_.resources[i] = resources_[i];
     active_ = next;
 }
 
@@ -133,7 +146,11 @@ std::uint64_t World::state_hash() const {
         h.add_u32(u.type); h.add_u32(u.owner); h.add_u32(u.state); h.add_u32(u.facing);
         h.add_i32(u.hp);
     }
+    for (int i = 0; i < 8; ++i) h.add_i32(resources_[i]);
     return h.value;
 }
+
+void World::sys_harvest() {}      // filled in the next task
+void World::sys_production() {}   // filled in the next task
 
 } // namespace sim

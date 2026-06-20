@@ -30,8 +30,11 @@ private:
     void apply_commands_for(std::uint64_t t);
     void sys_movement();
     void publish_snapshot();
-    EntityId spawn(CPos pos, CMobile mob, CUnit unit);
+    entt::entity spawn(CPos pos, CUnit unit);
     void spawn_initial();
+    entt::entity find_by_id(EntityId id);
+    void sys_harvest();
+    void sys_production();
 
     entt::registry reg_;
     Map            map_;
@@ -43,6 +46,7 @@ private:
     std::vector<SimEntitySnapshot> buf_[2];
     int        active_ = 0;
     SimSnapshot front_{};
+    std::int32_t resources_[8] = {0};
 };
 
 } // namespace sim
