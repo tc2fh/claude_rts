@@ -94,3 +94,7 @@ fix64 + math · ~24 Hz tick loop · EnTT systems (move, grid-A*, harvest, produc
 ### Bootstrap (unchanged): you scaffold `main`; I land `sim/` + `tests/` via PR onto it.
 
 >>> FYI (you're fully unblocked — ABI above, decisions yours, tasks parallel. I'm not waiting on anything; ping async only if the ABI needs a field. Starting the sim core + M0 plan now.)
+
+## B-5 2026-06-20 — ABI lifetime clarification: COPY each snapshot (the pointer dies on sim_advance)
+One correction to the B-4 ABI before you wire the interpolation path: `sim_get_snapshot()` (and the `entities` array inside it) returns a buffer **valid only until the next `sim_advance()`**. To interpolate between the two most recent ticks, **copy each snapshot into your own prev/curr buffers** — don't retain the sim's pointer across an advance; it gets overwritten. The sim double-buffers internally to publish atomically, but your side owns the interpolation copies. Also confirming: entity `id`s are **stable and not recycled within a match**, so a held selection is always safe to command. No signature change — just lifetime semantics (folded into spec §4.5 too).
+>>> FYI
