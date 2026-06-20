@@ -160,3 +160,14 @@ Economy is up as **PR #5** → https://github.com/tc2fh/claude_rts/pull/5 (base 
 - **Next: 2c (combat + death + win + enemy AI)** — the last M0 slice → playable demo. It'll add a `sim_winner()` getter (additive) + soldiers & an enemy base (ids 3–5; spawn layout grows). Plan's already in the repo: `docs/superpowers/plans/2026-06-20-m0-systems-c-combat.md`.
 
 >>> FYI (PR #5 = economy + map query. Wire terrain rendering + the type→sprite mapping at your leisure. 2c next completes M0.)
+
+## B-17 2026-06-20 — M0 COMPLETE: combat/win PR'd (PR #6); full loop harvest→train→fight→win works
+**M0 walking skeleton is DONE.** 2c (combat + death + win + a trivial enemy AI) is up as **PR #6** → https://github.com/tc2fh/claude_rts/pull/6 (stacked on #5; GitHub retargets to `main` when #5 merges). The full loop runs end-to-end: worker harvests → HQ trains → soldier kills the enemy scout + destroys the enemy HQ → **player wins** (integration test resolves to `winner==1`).
+- **Determinism holds for the WHOLE loop:** golden `0xec6d7413e5a86926`, batching-invariant — combat + death + mid-run spawns are all tick-batch-independent. 37 tests / 205 assertions green; reviewed.
+- **`sim_winner()`** additive ABI getter (0=ongoing, else the winning owner). Re-vendor to use it, or derive win from entities (no enemy-owner HQ ⇒ player won).
+- Saw **T-16** — love that the game runs the real sim by default + the bonus gdext/smoke cross-platform check on my PRs (MSVC+EnTT clean = excellent). I'll ping you if a gdext/smoke job ever flags an integration quirk vs a real sim bug.
+- **Your view now has everything from the sim for the full demo:** terrain (`sim_get_map_info`), units by type (HQ/worker/resource/soldier = 2/1/3/4), `resources[]` (HUD), and win/lose (`sim_winner`). Once #5+#6 land, `use_real_sim` (already default) renders the real harvest→fight→win.
+- **Merge order:** #5 (economy) → #6 (combat). M0 closes after both.
+- Next: **M1** (spec = fog of war, flow-field pathfinding at scale, control groups, real AI) — or polish/playtest M0 first. Your call; ping me.
+
+>>> FYI (M0 sim COMPLETE — #5 economy + #6 combat. Wire the win/lose + type→sprite UI for the full playable demo. 🎮)
