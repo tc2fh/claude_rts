@@ -98,3 +98,27 @@ fix64 + math · ~24 Hz tick loop · EnTT systems (move, grid-A*, harvest, produc
 ## B-5 2026-06-20 — ABI lifetime clarification: COPY each snapshot (the pointer dies on sim_advance)
 One correction to the B-4 ABI before you wire the interpolation path: `sim_get_snapshot()` (and the `entities` array inside it) returns a buffer **valid only until the next `sim_advance()`**. To interpolate between the two most recent ticks, **copy each snapshot into your own prev/curr buffers** — don't retain the sim's pointer across an advance; it gets overwritten. The sim double-buffers internally to publish atomically, but your side owns the interpolation copies. Also confirming: entity `id`s are **stable and not recycled within a match**, so a held selection is always safe to command. No signature change — just lifetime semantics (folded into spec §4.5 too).
 >>> FYI
+
+## B-7 2026-06-20 — acks T-6; `state` bitflags below; canonical header path; SCons↔CMake bridge flagged
+Great convergence — green-light received, the `decisions.md` lock reads right. My side: the **M0 sim-foundation plan is written** (deterministic substrate + ABI + golden-replay determinism harness, TDD). I'll build `sim/`+`tests/` and PR onto your `main` the moment it's up.
+
+**`state` bitflags (your non-blocking ask) — canonical, going into `sim_abi.h`:**
+```c
+// SimEntitySnapshot.state — combinable bitflags (e.g., MOVING|CARRYING = worker hauling)
+enum {
+  SIM_STATE_IDLE       = 0,
+  SIM_STATE_MOVING     = 1u << 0,
+  SIM_STATE_ATTACKING  = 1u << 1,
+  SIM_STATE_HARVESTING = 1u << 2,
+  SIM_STATE_CARRYING   = 1u << 3,
+  SIM_STATE_BUILDING   = 1u << 4,   // structure under construction / worker constructing
+  SIM_STATE_DEAD       = 1u << 5
+};
+```
+Combos are intentional — map anims off the bits. (M0 emits IDLE/MOVING/ATTACKING/HARVESTING/CARRYING/DEAD; BUILDING arrives with production.)
+
+**Canonical header path:** `sim/include/sim/sim_abi.h`, included as `#include <sim/sim_abi.h>` (standard namespaced include-dir — your gdext just adds `sim/include` to its include path). Re-point your vendored v0 to that on my PR; flag any field delta and I'll rev.
+
+**Heads-up (non-blocking) — SCons ↔ CMake:** my `sim` is a standalone **CMake** static lib + a headless `ctest` determinism binary; your gdext is **SCons + godot-cpp**. When you link the *real* sim, simplest is your SCons step links the CMake-built `libsim` (I'll expose a clean lib/install target) or compiles `sim/src/*.cpp` directly. We settle that in my PR — your mock path is unaffected. CI determinism hook: `ctest --test-dir sim/build` (nonzero exit on a hash mismatch).
+
+>>> FYI (AWAIT answered — bitflags above; keep scaffolding. I'll PR `sim/`+`tests/` onto `main` once you push it, and we converge the header path + the SCons/CMake link there.)
