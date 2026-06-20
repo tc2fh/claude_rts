@@ -73,6 +73,7 @@ void World::step() {
     apply_commands_for(tick_);
     sys_harvest();
     sys_production();
+    sys_combat();
     sys_movement();
     publish_snapshot();
 }
@@ -143,6 +144,10 @@ void World::apply_commands_for(std::uint64_t t) {
                     pr.timer = BUILD_TIME;
                 }
             }
+        }
+        else if (c.type == CMD_ATTACK) {
+            auto ue = find_by_id(c.unit);
+            if (ue != entt::null && reg_.all_of<CWeapon>(ue)) reg_.get<CWeapon>(ue).home_target = c.target;
         }
         else if (c.type == CMD_HARVEST) {
             auto we = find_by_id(c.unit);
@@ -273,7 +278,51 @@ void World::sys_production() {
     }
 }
 
-void World::sys_combat() {}   // filled next
+void World::sys_combat() {
+    std::vector<std::pair<EntityId, entt::entity>> order;
+    for (auto e : reg_.view<CId, CWeapon, CPos, CUnit, CMobile>())
+        order.push_back({reg_.get<CId>(e).id, e});
+    std::sort(order.begin(), order.end());
+
+    std::vector<std::pair<EntityId, entt::entity>> cand;
+    for (auto e : reg_.view<CId, CPos, CUnit>()) cand.push_back({reg_.get<CId>(e).id, e});
+    std::sort(cand.begin(), cand.end());
+
+    for (auto& [id, e] : order) {
+        auto& w = reg_.get<CWeapon>(e);
+        auto& m = reg_.get<CMobile>(e);
+        const auto& p = reg_.get<CPos>(e);
+        const auto& u = reg_.get<CUnit>(e);
+        if (w.timer > 0) --w.timer;
+        const int mx = Map::world_to_cell(p.x), my = Map::world_to_cell(p.y);
+
+        EntityId acquired = 0; int best = ACQUIRE_RANGE + 1;
+        for (auto& [oid, oe] : cand) {
+            const auto& ou = reg_.get<CUnit>(oe);
+            if (ou.owner == u.owner || ou.owner == 0) continue;   // not an enemy
+            const auto& op = reg_.get<CPos>(oe);
+            const int d = cheb(mx, my, Map::world_to_cell(op.x), Map::world_to_cell(op.y));
+            if (d <= ACQUIRE_RANGE && d < best) { best = d; acquired = oid; }
+        }
+        if (acquired != 0) w.target = acquired;
+        else if (w.home_target != 0 && find_by_id(w.home_target) != entt::null) w.target = w.home_target;
+        else w.target = 0;
+
+        if (w.target == 0) continue;
+        auto te = find_by_id(w.target);
+        if (te == entt::null) { w.target = 0; continue; }
+        const auto& tp = reg_.get<CPos>(te);
+        const int d = cheb(mx, my, Map::world_to_cell(tp.x), Map::world_to_cell(tp.y));
+        if (d <= w.range_cells) {
+            m.path.clear(); m.next = 0;
+            if (w.timer == 0) { reg_.get<CUnit>(te).hp -= w.damage; w.timer = w.cooldown; }
+        } else {
+            m.path = find_path(map_, {mx, my}, {Map::world_to_cell(tp.x), Map::world_to_cell(tp.y)});
+            m.next = m.path.size() > 1 ? 1 : m.path.size();
+        }
+    }
+}
+
 void World::sys_death()  {}   // filled next
 
 } // namespace sim

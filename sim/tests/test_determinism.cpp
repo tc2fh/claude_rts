@@ -34,5 +34,5 @@ TEST_CASE("economy replay is batching-invariant") {
 TEST_CASE("economy golden hash is stable across platforms") {
     std::uint64_t h = run_scenario({1600});
     std::printf("[determinism] economy scenario hash = 0x%016llx\n", (unsigned long long)h);
-    CHECK(h == 0xc9d6c0e60514e177ull);
+    CHECK(h == 0x823fd4bcf9f6ff17ull);
 }
