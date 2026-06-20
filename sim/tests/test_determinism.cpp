@@ -1,19 +1,20 @@
 #include <doctest/doctest.h>
 #include "sim/world.h"
+#include "sim/sim_abi.h"
 #include <vector>
 #include <cstdio>
 
 using namespace sim;
 
 namespace {
-// A fixed scenario: seed + CMD_STOP commands at specific exec_ticks, advanced via a
-// chunk plan whose elements sum to 50. Same scenario + same total ticks => same hash.
+fix64_t W(int c) { return (fix64_t)c << 32; }
+// Seed + CMD_MOVE orders for both units, advanced via a chunk plan summing to 200.
 std::uint64_t run_scenario(const std::vector<std::uint32_t>& chunks) {
     World w(20260620ull, 0);
-    struct Entry { std::uint64_t t; std::uint32_t unit; };
-    const Entry log[] = {{2, 0}, {5, 1}};
+    struct Mv { std::uint64_t t; std::uint32_t unit; int cx, cy; };
+    const Mv log[] = {{1, 0, 18, 4}, {1, 1, 5, 20}, {30, 0, 2, 22}};
     for (const auto& e : log) {
-        SimCommand c{}; c.type = CMD_STOP; c.player = 1; c.unit = e.unit;
+        SimCommand c{}; c.type = CMD_MOVE; c.player = 1; c.unit = e.unit; c.tx = W(e.cx); c.ty = W(e.cy);
         w.push_command(c, e.t);
     }
     for (auto n : chunks) w.advance(n);
@@ -21,24 +22,21 @@ std::uint64_t run_scenario(const std::vector<std::uint32_t>& chunks) {
 }
 } // namespace
 
-TEST_CASE("replay is reproducible within a process") {
-    CHECK(run_scenario({50}) == run_scenario({50}));
+TEST_CASE("movement replay is reproducible") {
+    CHECK(run_scenario({200}) == run_scenario({200}));
 }
 
-TEST_CASE("replay is batching-invariant with commands active") {
-    const std::uint64_t ref = run_scenario({50});
-    CHECK(run_scenario({7, 13, 30}) == ref);   // sums to 50
-    CHECK(run_scenario({25, 25})    == ref);   // sums to 50
-    std::vector<std::uint32_t> ones(50, 1);    // 50 x advance(1)
+TEST_CASE("movement replay is batching-invariant") {
+    const std::uint64_t ref = run_scenario({200});
+    CHECK(run_scenario({50, 70, 80}) == ref);   // sums to 200
+    CHECK(run_scenario({100, 100})   == ref);
+    std::vector<std::uint32_t> ones(200, 1);     // 200 x advance(1)
     CHECK(run_scenario(ones) == ref);
 }
 
-TEST_CASE("golden hash is stable across platforms") {
-    std::uint64_t h = run_scenario({50});
-    std::printf("[determinism] scenario hash = 0x%016llx\n", (unsigned long long)h);
-    // GOLDEN: pinned after first green run. MUST match on macOS-arm64 and Windows-x64.
-    // A mismatch across OSes is a determinism bug to FIX, not to re-pin.
-    // Re-pinned for M0-systems-2a Task 3: 2-unit world, no drift, CMobile.
-    // MUST match on macOS-arm64 and Windows-x64. A mismatch across OSes is a determinism bug.
-    CHECK(h == 0x708f9a7301753bb6ull);
+TEST_CASE("movement golden hash is stable across platforms") {
+    std::uint64_t h = run_scenario({200});
+    std::printf("[determinism] movement scenario hash = 0x%016llx\n", (unsigned long long)h);
+    // GOLDEN: pin after first green run; MUST match on macOS-arm64 + Windows-x64 + Linux.
+    CHECK(h == 0x1db7f53422dea2e9ull);
 }
