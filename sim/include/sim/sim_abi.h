@@ -60,6 +60,13 @@ typedef enum {
   CMD_MOVE, CMD_ATTACK, CMD_HARVEST, CMD_BUILD, CMD_TRAIN, CMD_STOP
 } SimCommandType;
 
+typedef enum {                    /* unit type ids; also the SimCommand.param value for CMD_TRAIN */
+  SIM_TYPE_WORKER   = 1,
+  SIM_TYPE_HQ       = 2,
+  SIM_TYPE_RESOURCE = 3,
+  SIM_TYPE_SOLDIER  = 4
+} SimUnitType;
+
 typedef struct {                  /* POD, view -> sim */
   SimCommandType type;
   uint8_t  player;

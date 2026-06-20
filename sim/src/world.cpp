@@ -139,10 +139,17 @@ void World::apply_commands_for(std::uint64_t t) {
             if (he != entt::null && reg_.all_of<CProducer, CUnit>(he)) {
                 auto& pr = reg_.get<CProducer>(he);
                 const auto& hu = reg_.get<CUnit>(he);
-                if (pr.train_type == 0 && resources_[hu.owner] >= WORKER_COST) {
-                    resources_[hu.owner] -= WORKER_COST;
-                    pr.train_type = TYPE_WORKER;
-                    pr.timer = BUILD_TIME;
+                // param selects what to train; 0 defaults to worker (back-compat).
+                const std::uint16_t want = (c.param == 0) ? TYPE_WORKER : c.param;
+                std::int32_t  cost  = 0;
+                std::uint32_t build = 0;
+                if (want == TYPE_WORKER)       { cost = WORKER_COST;  build = BUILD_TIME; }
+                else if (want == TYPE_SOLDIER) { cost = SOLDIER_COST; build = SOLDIER_BUILD_TIME; }
+                else continue;   // unknown/untrainable type — ignore this command
+                if (pr.train_type == 0 && resources_[hu.owner] >= cost) {
+                    resources_[hu.owner] -= cost;
+                    pr.train_type = want;
+                    pr.timer = build;
                 }
             }
         }
@@ -270,10 +277,18 @@ void World::sys_production() {
             const auto& hp = reg_.get<CPos>(e);
             const auto& hu = reg_.get<CUnit>(e);
             const int cx = Map::world_to_cell(hp.x) + 1, cy = Map::world_to_cell(hp.y) + 1;
-            auto w = spawn(CPos{Map::cell_to_world(cx), Map::cell_to_world(cy)},
-                           CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
-            reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
-            reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
+            const CPos spawn_pos{Map::cell_to_world(cx), Map::cell_to_world(cy)};
+            if (pr.train_type == TYPE_SOLDIER) {
+                auto sdr = spawn(spawn_pos,
+                                 CUnit{TYPE_SOLDIER, hu.owner, SIM_STATE_IDLE, 0, SOLDIER_HP, SOLDIER_HP});
+                reg_.emplace<CMobile>(sdr, CMobile{fix_one / 8, {}, 0});
+                reg_.emplace<CWeapon>(sdr, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0, 0});
+            } else {
+                auto w = spawn(spawn_pos,
+                               CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
+                reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
+                reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
+            }
             pr.train_type = 0;
         }
     }
