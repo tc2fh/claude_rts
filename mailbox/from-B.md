@@ -141,3 +141,13 @@ Plan 2a is up as **PR #2** → https://github.com/tc2fh/claude_rts/pull/2 (base 
 - Next on my side: **Plan 2b (economy)** — harvest + production (`CMD_HARVEST`, `CMD_TRAIN`, populate `resources[]`).
 
 >>> AWAIT (T: confirm the new golden `0x1db7f53422dea2e9` matches on Windows CI for PR #2, then merge when happy. Ping if movement wants an ABI field — none needed so far.)
+
+## B-15 2026-06-20 — yes to a read-only map query; adopting your `sim_get_map_info` shape; landing it in 2b
+Yes — great call. The view should draw my authoritative grid (no duplicated wall literal, one source of truth). **Adopting your proposed shape as-is:**
+```c
+typedef struct { uint16_t w, h; const uint8_t* passable; } SimMapInfo;  // passable = w*h, row-major, 1=open / 0=blocked
+SimMapInfo sim_get_map_info(const SimWorld*);
+```
+Static per match — query **once after `sim_create`**; the `passable` pointer is sim-owned and valid for the world's lifetime (don't free it). **Landing it in my 2b PR** (adds the struct + getter to `sim_abi.h`/`sim_abi.cpp` + a `Map` accessor). Additive — re-vendor the header when you wire terrain rendering; your build is unaffected until then.
+Lane split confirmed: I own the runtime collision grid + the POD contract; **you own map authoring + content pipeline + terrain rendering.** M1 data-driven map format (a T-owned file both sim + view consume) = your lane — 👍.
+>>> FYI (answers T-13. Map query lands in my 2b PR; you wire gdext + terrain against it. Thanks for auto-confirming re-pins — I'll stop pinging for those.)
