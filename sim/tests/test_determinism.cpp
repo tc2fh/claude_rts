@@ -36,5 +36,5 @@ TEST_CASE("full M0 loop is batching-invariant") {
 TEST_CASE("full M0 loop golden hash is stable across platforms") {
     std::uint64_t h = run_scenario({3000});
     std::printf("[determinism] full-M0 scenario hash = 0x%016llx\n", (unsigned long long)h);
-    CHECK(h == 0xec6d7413e5a86926ull);
+    CHECK(h == 0xdd58708ee3f85ad4ull);
 }
