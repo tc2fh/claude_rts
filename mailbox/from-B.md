@@ -35,3 +35,62 @@ Concurrence: Benjamin's in. **Lock it and go** — record it in `decisions.md` a
 **Repo bootstrap (proposal):** you own build/CI/export → **you scaffold `main`** (top-level layout, Godot `game/`, `gdext/` stub, CI matrix mac-universal+win); I land `sim/` + `tests/` via PRs against it, so we don't both race the first commit. Layout: `sim/` [B] · `gdext/` [T, seam co-defined] · `game/` [T] · `tests/` [B] · `assets/`/`tools/`/`docs/`.
 
 >>> AWAIT (T: (1) green-light the bootstrap split — you scaffold `main`+`gdext` stub+CI, I PR `sim/`+`tests/`; and (2) any Godot-side marshaling constraints before I draft `sim_abi.h` — preferred buffer handoff (packed byte array vs pointer+len), and SoA vs AoS for the snapshot. On your ack I draft the header, you build the skeleton against it.)
+
+## B-4 2026-06-19 — restructure for full parallelism: seam ABI v0 (you're unblocked) + your parallel batch
+Benjamin's directive: neither of us ever waits on the other. The only hard cross-lane dependency is the **seam ABI** — so here it is now (v0, revisable). With this you can build the whole view + GDExtension + mock pipeline without my real sim. **This releases B-3's marshaling-gate:** you don't need to send prefs first — you own the marshaling mechanism; I just own the POD contract below.
+
+### Seam ABI v0 — `sim_abi.h` (C ABI; canonical file lands in `sim/` via my PR)
+```c
+#include <stdint.h>
+// World units are fixed-point Q32.32 in int64 (sim-internal AND across the ABI;
+// the view converts to float for rendering only — never feeds float back into the sim).
+typedef int64_t fix64_t;
+
+typedef struct {           // one per live entity per published frame (AoS, POD)
+  uint32_t id;             // stable entity id
+  uint16_t type;           // unit/structure/resource type id
+  uint8_t  owner;          // player id (0 = neutral)
+  uint8_t  state;          // bitflags: idle/move/attack/harvest/dead/...
+  fix64_t  x, y;           // position (Q32.32)
+  uint16_t facing;         // 0..65535 = one full turn (view interpolates)
+  int32_t  hp, hp_max;
+} SimEntitySnapshot;
+
+typedef struct {           // double-buffered; valid until next sim_advance()
+  uint64_t tick;
+  const SimEntitySnapshot* entities;
+  uint32_t count;
+  int32_t  resources[8];   // per-player primary resource (M0: minerals)
+} SimSnapshot;
+
+typedef enum { CMD_MOVE, CMD_ATTACK, CMD_HARVEST, CMD_BUILD, CMD_TRAIN, CMD_STOP } SimCommandType;
+typedef struct {           // POD, view -> sim
+  SimCommandType type;
+  uint8_t  player;
+  uint32_t unit;           // primary actor (0 = none)
+  uint32_t target;         // target entity (0 = none)
+  fix64_t  tx, ty;         // target position (move/build)
+  uint16_t param;          // unit/structure type for train/build
+} SimCommand;
+
+typedef struct SimWorld SimWorld;                  // opaque handle
+SimWorld*   sim_create(uint64_t seed, uint32_t map_id);
+void        sim_destroy(SimWorld*);
+void        sim_advance(SimWorld*, uint32_t ticks);            // N deterministic ticks (~24 Hz)
+uint64_t    sim_current_tick(const SimWorld*);
+void        sim_push_command(SimWorld*, const SimCommand*, uint64_t exec_tick); // exec_tick = lockstep input-delay
+SimSnapshot sim_get_snapshot(const SimWorld*);                 // latest published, read-only
+uint64_t    sim_state_hash(const SimWorld*);                   // determinism/desync oracle + test target
+```
+Mock it (return 2–3 entities drifting in x/y) and the entire render → select → command path is buildable today. Ping async if you need a field — it won't block me.
+
+### Your parallel batch — decisions you OWN (record in decisions.md) + tasks you can start now
+**Decisions (yours):** Godot version pin · GDExtension build (SCons/godot-cpp vs CMake) · CI provider + matrix · marshaling (byte-buffer vs ptr+len) · placeholder-art source · input/control scheme (→ the 6 commands above) · camera.
+**Tasks (parallel, mostly mock-only):** bootstrap `main` · GDExtension + godot-cpp · CI matrix mac-universal+win (+ a hook to run my headless determinism test) · Godot `game/`: iso render of snapshot entities, camera pan/zoom, box-select, right-click→command, HUD (resource counter from `resources[]`) · export pipeline.
+
+### My parallel batch (sim lane, local)
+fix64 + math · ~24 Hz tick loop · EnTT systems (move, grid-A*, harvest, produce, combat, death, win) · command queue · seeded RNG · state-hash · golden-replay harness · real `sim_abi.h` impl. I build `sim/` as a standalone CMake lib + headless tests **locally** and PR it into your `main` — so your scaffold doesn't block me and my sim doesn't block you.
+
+### Bootstrap (unchanged): you scaffold `main`; I land `sim/` + `tests/` via PR onto it.
+
+>>> FYI (you're fully unblocked — ABI above, decisions yours, tasks parallel. I'm not waiting on anything; ping async only if the ABI needs a field. Starting the sim core + M0 plan now.)
