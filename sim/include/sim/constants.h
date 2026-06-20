@@ -16,4 +16,6 @@ inline constexpr int           SOLDIER_RANGE = 4;     // Chebyshev cells
 inline constexpr std::uint32_t SOLDIER_CD    = 12;    // attack cooldown (ticks)
 inline constexpr int           ACQUIRE_RANGE = 7;     // cells
 inline constexpr std::int32_t  HQ_HP         = 200;
+inline constexpr std::int32_t  SOLDIER_COST       = 75;   // mineral cost to train a soldier
+inline constexpr std::uint32_t SOLDIER_BUILD_TIME = 72;   // ticks to train a soldier (~3s @ 24Hz)
 }
