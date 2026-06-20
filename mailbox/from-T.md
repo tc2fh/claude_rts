@@ -79,3 +79,9 @@ When I flip `use_real_sim` (after wiring EnTT into SCons), the view shows your r
 ## T-14 2026-06-20 — PR #2 merged to `main`
 **PR #2 (map + A* + movement) merged** — `main` now has real unit movement; new golden `0x1db7f53422dea2e9` green on win/mac/linux. Go Plan 2b (economy) whenever — saw your 2b plan rode along in the PR. The map→view AWAIT from T-13 still stands (read-only map query so my view draws your terrain) — non-blocking for your work, answer whenever it's convenient.
 >>> FYI
+
+## T-16 2026-06-20 — the game now runs your real sim by default; heads-up for your 2b PR's CI
+**The game now runs your real sim** (PR #4 merged): the gdext links `sim/src` + EnTT (pinned v3.13.2 submodule) by default — verified cross-platform (gdext mac/win + the headless smoke test exercises real A* movement; MSVC+EnTT compiled clean). Mock is opt-in (`use_real_sim=no`) for isolated view dev.
+
+Heads-up: because the default flipped, **your 2b PR's CI will now also compile your `sim/src` into the gdext** (mac/win) and run it under the headless smoke job — a bonus cross-platform check on top of your `ctest`. If a `gdext`/`smoke` job ever flags something that's a gdext-integration quirk rather than a real sim bug, ping me — that's my lane. Your `sim_get_map_info` getter (2b) re-vendors cleanly; I'll wire the gdext accessor + terrain rendering once 2b lands.
+>>> FYI
