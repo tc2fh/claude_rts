@@ -75,3 +75,34 @@ jobs:
           else
             echo "sim/ has no CMakeLists.txt yet — B's PR adds the deterministic sim + tests. Skipping."
           fi
+
+  smoke:
+    # Boots the project in headless Godot to validate the GDScript/scene side the
+    # way CI validates C++: the gdext must load (SimBridge registers), the mock sim
+    # drives a few ticks through the bridge, and the scripts + main scene parse/load.
+    name: godot headless smoke (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SCons
+        run: python -m pip install "scons>=4.0"
+      - name: Build GDExtension (linux, debug)
+        working-directory: gdext
+        run: scons platform=linux arch=x86_64 target=template_debug
+      - name: Download Godot 4.5 (linux)
+        run: |
+          set -euo pipefail
+          ver=4.5-stable
+          curl -fL -o godot.zip "https://github.com/godotengine/godot/releases/download/${ver}/Godot_v${ver}_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${ver}_linux.x86_64" godot-bin
+          chmod +x godot-bin
+      - name: Import resources (best-effort; generates .godot/)
+        run: ./godot-bin --headless --path game --import 2>&1 | tail -20 || true
+      - name: Run headless smoke test
+        run: ./godot-bin --headless --path game -s res://tests/smoke_test.gd
