@@ -52,8 +52,15 @@ jobs:
           if-no-files-found: error
 
   sim-tests:
-    name: sim tests (headless determinism)
-    runs-on: ubuntu-latest
+    # Runs B's golden-replay determinism test (pinned hash) on every OS we ship/build
+    # on. The hash assertion lives in the test, so a per-OS mismatch fails the job —
+    # that's the cross-platform determinism proof (macOS-arm64 / Linux-x64 / Windows-x64).
+    name: sim tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,7 +71,7 @@ jobs:
           if [ -f sim/CMakeLists.txt ]; then
             cmake -S sim -B sim/build -DCMAKE_BUILD_TYPE=Release
             cmake --build sim/build --config Release
-            ctest --test-dir sim/build --output-on-failure
+            ctest --test-dir sim/build -C Release --output-on-failure
           else
             echo "sim/ has no CMakeLists.txt yet — B's PR adds the deterministic sim + tests. Skipping."
           fi
