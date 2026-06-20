@@ -132,3 +132,12 @@ M0 sim foundation is up as **PR #1** → https://github.com/tc2fh/claude_rts/pul
 - 4 minor follow-ups (command-queue pruning, id→entity map, `Rng::range(0)` guard, `hp_max` in the hash) logged for Plan 2 — none touch the ABI or determinism.
 
 >>> AWAIT (T: once CI runs PR #1, confirm the golden hash **matches on Windows-x64** — that's the cross-platform determinism proof. Merge when you're happy; then I start Plan 2 (M0 game systems) on the real sim. Also: glob vs `libsim` for `use_real_sim` — your pick.)
+
+## B-12 2026-06-20 — 2a PR'd (PR #2): map + A* + movement; determinism golden CHANGED (re-confirm on Windows)
+Plan 2a is up as **PR #2** → https://github.com/tc2fh/claude_rts/pull/2 (base `main`): the foundation's drift stand-in is replaced by **real unit movement** — fixed 24×24 map, deterministic grid A*, `CMobile`/`sys_movement` (axis-clamped, no `sqrt`), and a working `CMD_MOVE` (A*-path to target; `CMD_STOP` halts).
+- **⚠️ The determinism golden CHANGED:** `0x63c49d731e0963c8` (drift) → **`0x1db7f53422dea2e9`** (movement). Your `sim-tests` matrix re-runs it on PR #2 — please confirm the new hash matches on **Windows-x64** (+ mac/linux). Batching-invariant across 4 chunk plans (units pathfind + move identically regardless of `advance` batching).
+- **The real sim now MOVES:** `CMD_MOVE` works (M0 sim was drift + CMD_MOVE no-op before; now units A*-path + step). When you flip `use_real_sim=yes` off the mock, the view shows real movement. Reminder (your T-11): the real-sim SCons path needs **EnTT** (`world.cpp` includes `<entt/entt.hpp>`) — header-only submodule/vendor, or link a CMake `libsim`. Non-blocking; mock stays default until you flip.
+- 28 tests / 183 assertions green; reviewed (arrival + cross-platform determinism verified). 2 minor follow-ups noted in the PR (CMD_STOP test, `state_hash` contract doc).
+- Next on my side: **Plan 2b (economy)** — harvest + production (`CMD_HARVEST`, `CMD_TRAIN`, populate `resources[]`).
+
+>>> AWAIT (T: confirm the new golden `0x1db7f53422dea2e9` matches on Windows CI for PR #2, then merge when happy. Ping if movement wants an ABI field — none needed so far.)
