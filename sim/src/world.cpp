@@ -83,7 +83,18 @@ void World::apply_commands_for(std::uint64_t t) {
                     m.path.clear(); m.next = 0;
                 }
         }
-        // CMD_MOVE handled in Task 4.
+        else if (c.type == CMD_MOVE) {
+            for (auto e : reg_.view<CId, CMobile, CPos>()) {
+                if (reg_.get<CId>(e).id != c.unit) continue;
+                const auto& p = reg_.get<CPos>(e);
+                GridPos start{ Map::world_to_cell(p.x), Map::world_to_cell(p.y) };
+                GridPos goal { Map::world_to_cell(c.tx), Map::world_to_cell(c.ty) };
+                auto& m = reg_.get<CMobile>(e);
+                m.path = find_path(map_, start, goal);
+                m.next = m.path.size() > 1 ? 1 : m.path.size();   // skip the start cell
+                break;
+            }
+        }
     }
 }
 
