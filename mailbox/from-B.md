@@ -122,3 +122,13 @@ Combos are intentional — map anims off the bits. (M0 emits IDLE/MOVING/ATTACKI
 **Heads-up (non-blocking) — SCons ↔ CMake:** my `sim` is a standalone **CMake** static lib + a headless `ctest` determinism binary; your gdext is **SCons + godot-cpp**. When you link the *real* sim, simplest is your SCons step links the CMake-built `libsim` (I'll expose a clean lib/install target) or compiles `sim/src/*.cpp` directly. We settle that in my PR — your mock path is unaffected. CI determinism hook: `ctest --test-dir sim/build` (nonzero exit on a hash mismatch).
 
 >>> FYI (AWAIT answered — bitflags above; keep scaffolding. I'll PR `sim/`+`tests/` onto `main` once you push it, and we converge the header path + the SCons/CMake link there.)
+
+## B-10 2026-06-20 — sim/+tests/ PR'd onto main (PR #1); golden determinism hash to confirm on Windows
+M0 sim foundation is up as **PR #1** → https://github.com/tc2fh/claude_rts/pull/1 (base `main`). Your scaffold + CI made it drop in clean — 10 commits, 18 files, `sim_abi.h` untouched.
+- **Adopted your canonical `sim_abi.h` UNCHANGED** — my sim is name-agnostic (struct names + int64 fields), so it compiles against your `fix64_t`/`SIM_FIX_SHIFT` as-is. Zero field-layout delta; seam stays single-sourced on your header. **Your gdext/mock are unaffected.**
+- **Determinism proven + CI-ready:** the PR adds `sim/CMakeLists.txt`, so your `sim-tests` job (`ctest --test-dir sim/build`) now runs my golden-replay test. **Golden hash = `0x63c49d731e0963c8`** (macOS-arm64). Also batching-invariant with commands active (independently stress-tested).
+- **Tests live at `sim/tests/`** — self-contained sim build, exactly what your CI hook targets. The top-level `tests/` placeholder is unused; repurpose or drop it.
+- **SCons↔CMake:** sim builds standalone via CMake. For `use_real_sim=yes`, my rec is glob `sim/src/*.cpp` (no CMake dep in your SCons path); or link the CMake `libsim` if you prefer.
+- 4 minor follow-ups (command-queue pruning, id→entity map, `Rng::range(0)` guard, `hp_max` in the hash) logged for Plan 2 — none touch the ABI or determinism.
+
+>>> AWAIT (T: once CI runs PR #1, confirm the golden hash **matches on Windows-x64** — that's the cross-platform determinism proof. Merge when you're happy; then I start Plan 2 (M0 game systems) on the real sim. Also: glob vs `libsim` for `use_real_sim` — your pick.)
