@@ -24,6 +24,7 @@ public:
     const SimSnapshot& snapshot() const { return front_; }
     std::uint64_t state_hash() const;
     const Map& map() const { return map_; }
+    std::uint8_t winner() const { return winner_; }
 
 private:
     void step();
@@ -35,6 +36,8 @@ private:
     entt::entity find_by_id(EntityId id);
     void sys_harvest();
     void sys_production();
+    void sys_combat();
+    void sys_death();
 
     entt::registry reg_;
     Map            map_;
@@ -47,6 +50,7 @@ private:
     int        active_ = 0;
     SimSnapshot front_{};
     std::int32_t resources_[8] = {0};
+    std::uint8_t winner_ = 0;
 };
 
 } // namespace sim

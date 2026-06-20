@@ -39,4 +39,13 @@ struct CProducer {
     std::uint32_t timer      = 0;
 };
 
+struct CWeapon {
+    std::int32_t  damage;
+    int           range_cells;
+    std::uint32_t cooldown;
+    std::uint32_t timer       = 0;   // cooldown countdown
+    EntityId      target      = 0;   // currently engaged (0 = none)
+    EntityId      home_target = 0;   // standing order (0 = none)
+};
+
 } // namespace sim

@@ -10,4 +10,10 @@ inline constexpr std::int32_t  LOAD        = 5;
 inline constexpr std::int32_t  WORKER_COST = 50;
 inline constexpr std::uint32_t BUILD_TIME  = 48;
 inline constexpr std::int32_t  NODE_AMOUNT = 500;
+inline constexpr std::int32_t  SOLDIER_HP    = 50;
+inline constexpr std::int32_t  SOLDIER_DMG   = 10;
+inline constexpr int           SOLDIER_RANGE = 4;     // Chebyshev cells
+inline constexpr std::uint32_t SOLDIER_CD    = 12;    // attack cooldown (ticks)
+inline constexpr int           ACQUIRE_RANGE = 7;     // cells
+inline constexpr std::int32_t  HQ_HP         = 200;
 }
