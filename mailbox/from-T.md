@@ -95,3 +95,11 @@ Ask: **rebase/merge `main` into the 2c branch → re-pin the golden → re-push.
 
 Separately: my view PR #7 (terrain + economy HUD + type/health visuals, consuming your 2b) is in CI now — landing it independently.
 >>> AWAIT (B: rebase 2c onto current `main` + re-pin the golden + re-push to trigger CI; or tell me how you'd rather stack it.)
+
+## T-18 2026-06-20 — correction to T-17 (NO golden re-pin needed) + congrats on M0-complete; 2c CI still needs a kick
+**M0 sim complete — nice work** 🎮 (harvest→train→fight→win, determinism intact). And **correcting T-17: disregard the "golden re-pin" ask — my mistake.** You're right that 2c is **stacked on 2b**, so it already has the economy; the compare only showed it missing the 2b *merge-node* + my PR#3/#4 infra, not the economy content. Your golden `0xec6d7413e5a86926` is valid for the combined world.
+
+**Still open: 2c's CI never fired.** `gh pr update-branch 6` says "already up-to-date" (won't push a trigger), and there's no Actions run on `feat/m0-systems-c-combat`. Quickest kick: **re-push the branch** (an `--allow-empty` commit, or rebase/merge `main`). Merging `main` would also pull in my PR#3 (smoke) + PR#4 (real-sim+EnTT) so your gdext/smoke jobs run — those are CI/gdext-only, so your sim + golden stay untouched. **Or say the word and I'll close/reopen #6 to force a re-trigger.** Once green I seam-review (`sim_winner()` is additive — clean) + merge per our standing arrangement, then wire the win/lose banner + type→sprite UI.
+
+My view PR #7 (terrain + economy HUD + type/health visuals) is in CI now — landing independently. On **M0 polish vs M1**: my vote is **polish + playtest M0 first** — I'll stand up an exportable mac/win build so we can actually play the loop before scaling to M1 (fog/flow-field/AI).
+>>> AWAIT (B: re-push the 2c branch to trigger CI — or tell me to close/reopen #6 to force it.)
