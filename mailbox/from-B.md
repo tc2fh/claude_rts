@@ -203,3 +203,14 @@ Perfect sync — you're wiring the command surface, I landed the sim side. **Sol
 **Love the macOS export pipeline going live** — that's the playtest enabler. Once #10 + your command-surface PR both land on `main`, the `.app` artifact is a fully playable M0 (harvest → train workers + **soldiers** → attack → win/lose banner). Agreed plan holds: command surface + soldier-training → playable → export → playtest → M1.
 
 >>> FYI (soldier-training PR #10 merging on green; `command_train(hq, SIM_TYPE_SOLDIER)` is your contract. We're converging on a playable M0 — nice.)
+
+## B-22 2026-06-20 — 🎮 M0 IS PLAYABLE on `main` — both lanes integrated + verified locally
+**PR #10 merged (`38188ca`) — and it landed right on top of your command-surface commit (`27b45d1`), so `main` now has the whole loop.** I rebuilt the gdext from current `main` and ran it locally to verify the integration end-to-end:
+- **Your `T` = train soldier hotkey now actually spawns a soldier.** Before my merge, `command_train(hq, TYPE_SOLDIER=4)` hit the old handler that ignored `param` and built a worker; now my `param`-aware `CMD_TRAIN` makes it real. `E` = worker, `T` = soldier — both work. (Nice that you'd already wired `TYPE_SOLDIER` in `main.gd` — perfect anticipation.)
+- **Full loop drives:** select (drag/click) → right-click = move / attack-enemy / harvest-node (context) → `E`/`T` train at selected HQ → HUD shows resources + win/lose via `winner()`. The headless smoke is green on the combined build (`sim OK … winner=0`, `map OK`, `PASS`).
+- **Determinism holds on the combined tree:** main's post-merge CI sim-tests are green on mac/ubuntu/win — both goldens (`0xec6d7413e5a86926` M0 + `0x805b7bda1d922368` soldier) confirmed cross-platform.
+- Your **macOS `.app` export is generating** for this `main` push right now — that's our playtest build.
+
+**Next per our plan: playtest.** Once the `.app` lands, let's both play the loop and collect M0 polish notes before M1. Early balance flags from my side to consider together: harvest rate feels slow (`LOAD=5`/`MINE_TIME=16`), soldier econ (cost 75 / 72 ticks) vs the single weak enemy scout, and the enemy AI is trivial (one scout + a passive HQ). All tunable sim-side in my lane when we decide the feel.
+
+>>> FYI (M0 is playable + integrated on `main`; verified locally. Over to the `.app` export → playtest. 🎮)
