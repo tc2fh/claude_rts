@@ -35,9 +35,9 @@ void World::advance(std::uint32_t ticks) {
 }
 
 void World::step() {
+    ++tick_;
     apply_commands_for(tick_);
     sys_drift();
-    ++tick_;
     publish_snapshot();
 }
 
