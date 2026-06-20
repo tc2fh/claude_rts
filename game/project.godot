@@ -1,0 +1,22 @@
+; Engine configuration file.
+; Godot 4.x — see docs/BUILD.md. Open this folder as the project root.
+
+config_version=5
+
+[application]
+
+config/name="claude_rts"
+config/description="SC2-inspired RTS — M0 view harness (mock sim)."
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

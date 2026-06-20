@@ -1,0 +1,11 @@
+[configuration]
+entry_symbol = "sim_rts_library_init"
+compatibility_minimum = "4.5"
+
+[libraries]
+macos.debug = "res://bin/libsim_rts.macos.template_debug.framework"
+macos.release = "res://bin/libsim_rts.macos.template_release.framework"
+windows.debug.x86_64 = "res://bin/libsim_rts.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libsim_rts.windows.template_release.x86_64.dll"
+linux.debug.x86_64 = "res://bin/libsim_rts.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://bin/libsim_rts.linux.template_release.x86_64.so"

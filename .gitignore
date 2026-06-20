@@ -1,0 +1,25 @@
+# --- Godot 4 editor cache / imports ---
+.godot/
+
+# --- Compiled GDExtension libraries (rebuilt from source / CI) ---
+# Keep the .gdextension descriptor; ignore the built binaries next to it.
+/game/bin/*
+!/game/bin/*.gdextension
+
+# --- SCons / native build artifacts ---
+*.os
+*.obj
+*.o
+*.a
+*.lib
+*.exp
+*.pdb
+*.ilk
+.sconsign.dblite
+compile_commands.json
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

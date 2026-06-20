@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+# Build the claude_rts GDExtension ("sim_rts") against godot-cpp.
+#
+#   scons platform=macos   arch=universal target=template_debug|template_release
+#   scons platform=windows arch=x86_64    target=template_debug|template_release
+#
+# Extra option:
+#   use_real_sim=yes   link sim/ instead of the bundled mock
+#                      (mock_sim.cpp self-disables via SIM_RTS_USE_REAL_SIM)
+import os
+
+env = SConscript("godot-cpp/SConstruct")
+
+env.Append(CPPPATH=["src/", os.path.join("..", "sim", "include")])
+
+sources = Glob("src/*.cpp")
+
+if ARGUMENTS.get("use_real_sim", "no") == "yes":
+    # The real deterministic sim provides sim_abi.h's implementation; the mock
+    # compiles to nothing. B's sim/ PR finalizes the exact source/lib wiring.
+    env.Append(CPPDEFINES=["SIM_RTS_USE_REAL_SIM"])
+    sources += Glob(os.path.join("..", "sim", "src", "*.cpp"))
+
+project_bin = os.path.join("..", "game", "bin")
+
+if env["platform"] == "macos":
+    target = "{}/libsim_rts.{}.{}.framework/libsim_rts.{}.{}".format(
+        project_bin, env["platform"], env["target"], env["platform"], env["target"]
+    )
+else:
+    target = "{}/libsim_rts{}{}".format(project_bin, env["suffix"], env["SHLIBSUFFIX"])
+
+library = env.SharedLibrary(target, source=sources)
+
+Default(library)

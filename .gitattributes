@@ -1,0 +1,13 @@
+# Normalize line endings: LF everywhere except Windows batch files.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Treat these as text with LF explicitly.
+*.gd   text eol=lf
+*.tscn text eol=lf
+*.godot text eol=lf
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
