@@ -165,6 +165,11 @@ SimMapInfo sim_get_map_info(const SimWorld *w) {
 	return SimMapInfo{ 24, 24, passable };
 }
 
+uint8_t sim_winner(const SimWorld *w) {
+	(void)w;
+	return 0; // mock: never-ending
+}
+
 } // extern "C"
 
 #endif // SIM_RTS_USE_REAL_SIM
