@@ -50,6 +50,7 @@ void World::step() {
     ++tick_;
     apply_commands_for(tick_);
     sys_harvest();
+    sys_production();
     sys_movement();
     publish_snapshot();
 }
@@ -107,6 +108,18 @@ void World::apply_commands_for(std::uint64_t t) {
                 m.path = find_path(map_, start, goal);
                 m.next = m.path.size() > 1 ? 1 : m.path.size();   // skip the start cell
                 break;
+            }
+        }
+        else if (c.type == CMD_TRAIN) {
+            auto he = find_by_id(c.unit);
+            if (he != entt::null && reg_.all_of<CProducer, CUnit>(he)) {
+                auto& pr = reg_.get<CProducer>(he);
+                const auto& hu = reg_.get<CUnit>(he);
+                if (pr.train_type == 0 && resources_[hu.owner] >= WORKER_COST) {
+                    resources_[hu.owner] -= WORKER_COST;
+                    pr.train_type = TYPE_WORKER;
+                    pr.timer = BUILD_TIME;
+                }
             }
         }
         else if (c.type == CMD_HARVEST) {
@@ -216,6 +229,25 @@ void World::sys_harvest() {
         }
     }
 }
-void World::sys_production() {}   // filled in the next task
+void World::sys_production() {
+    std::vector<std::pair<EntityId, entt::entity>> order;
+    for (auto e : reg_.view<CId, CProducer, CPos, CUnit>()) order.push_back({reg_.get<CId>(e).id, e});
+    std::sort(order.begin(), order.end());
+    for (auto& [id, e] : order) {
+        auto& pr = reg_.get<CProducer>(e);
+        if (pr.train_type == 0) continue;
+        if (pr.timer > 0) --pr.timer;
+        if (pr.timer == 0) {
+            const auto& hp = reg_.get<CPos>(e);
+            const auto& hu = reg_.get<CUnit>(e);
+            const int cx = Map::world_to_cell(hp.x) + 1, cy = Map::world_to_cell(hp.y) + 1;
+            auto w = spawn(CPos{Map::cell_to_world(cx), Map::cell_to_world(cy)},
+                           CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
+            reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
+            reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
+            pr.train_type = 0;
+        }
+    }
+}
 
 } // namespace sim
