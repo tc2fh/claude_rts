@@ -4,8 +4,9 @@
 #include <utility>
 #include <entt/entt.hpp>
 #include "sim/rng.h"
+#include "sim/sim_abi.h"
 #include "sim/components.h"
-#include "sim/sim_abi.h"   // SimCommand, SimSnapshot, SimEntitySnapshot
+#include "sim/map.h"
 
 namespace sim {
 
@@ -26,18 +27,18 @@ public:
 private:
     void step();
     void apply_commands_for(std::uint64_t t);
-    void sys_drift();
+    void sys_movement();
     void publish_snapshot();
-    EntityId spawn(CPos pos, CVel vel, CUnit unit);
+    EntityId spawn(CPos pos, CMobile mob, CUnit unit);
     void spawn_initial();
 
     entt::registry reg_;
+    Map            map_;
     std::uint64_t  tick_ = 0;
     Rng            rng_;
     EntityId       next_id_ = 0;
 
     std::vector<std::pair<std::uint64_t, SimCommand>> commands_;
-
     std::vector<SimEntitySnapshot> buf_[2];
     int        active_ = 0;
     SimSnapshot front_{};
