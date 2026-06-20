@@ -39,13 +39,23 @@ struct CProducer {
     std::uint32_t timer      = 0;
 };
 
+enum OrderKind : std::uint8_t {
+    ORD_STOP, ORD_MOVE, ORD_ATTACK_MOVE, ORD_HOLD, ORD_PATROL, ORD_ATTACK_TARGET
+};
+struct COrder {
+    OrderKind kind   = ORD_STOP;
+    GridPos   dest{};          // move/attack-move/patrol leg target cell
+    GridPos   anchor{};        // patrol other endpoint (unused this task)
+    bool      to_dest = true;  // patrol leg direction (unused this task)
+    EntityId  target = 0;      // ORD_ATTACK_TARGET: forced target id
+};
+
 struct CWeapon {
     std::int32_t  damage;
     int           range_cells;
     std::uint32_t cooldown;
-    std::uint32_t timer       = 0;   // cooldown countdown
-    EntityId      target      = 0;   // currently engaged (0 = none)
-    EntityId      home_target = 0;   // standing order (0 = none)
+    std::uint32_t timer = 0;   // cooldown countdown
+    EntityId      target = 0;  // currently engaged (0 = none)
 };
 
 } // namespace sim

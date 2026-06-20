@@ -216,7 +216,7 @@ TEST_CASE("training a soldier is deterministic and batching-invariant") {
     CHECK(run(2100) == run(3));
 
     // soldier-training golden (batching-invariant)
-    CHECK(run(1) == 0x805b7bda1d922368ull);
+    CHECK(run(1) == 0x7dabe2bc54f61b64ull);
 
     // Guard: confirm the scenario actually trains a soldier, so the golden above
     // genuinely covers the soldier spawn path (not just a harvest-only run).

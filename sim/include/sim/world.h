@@ -25,8 +25,10 @@ public:
     std::uint64_t state_hash() const;
     const Map& map() const { return map_; }
     std::uint8_t winner() const { return winner_; }
+    std::uint32_t drain_events(SimEvent* out, std::uint32_t max);
 
 private:
+    void emit_event(std::uint16_t type, std::uint32_t a, std::uint32_t b);
     void step();
     void apply_commands_for(std::uint64_t t);
     void sys_movement();
@@ -51,6 +53,7 @@ private:
     SimSnapshot front_{};
     std::int32_t resources_[8] = {0};
     std::uint8_t winner_ = 0;
+    std::vector<SimEvent> events_;
 };
 
 } // namespace sim

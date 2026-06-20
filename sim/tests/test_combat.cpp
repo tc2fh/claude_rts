@@ -43,11 +43,20 @@ TEST_CASE("a unit at 0 HP is removed and its id is not reused") {
 }
 
 TEST_CASE("destroying the enemy HQ wins the game") {
+    // Under COrder: CMD_ATTACK sets ORD_ATTACK_TARGET. The enemy scout (id 5) has a
+    // standing attack order on the player HQ, so we must kill it first or it will race to
+    // destroy the player HQ. Kill the scout (20 HP, in range 4 from the start: 2 hits at
+    // CD=12 => dead by tick ~25), then send the player soldier to the enemy HQ (id 4).
     SimWorld* s = sim_create(7, 0);
-    SimCommand atk{}; atk.type = CMD_ATTACK; atk.player = 1; atk.unit = 3; atk.target = 4; // -> enemy HQ
-    sim_push_command(s, &atk, 1);
+    // Step 1: player soldier kills the scout
+    SimCommand atk5{}; atk5.type = CMD_ATTACK; atk5.player = 1; atk5.unit = 3; atk5.target = 5;
+    sim_push_command(s, &atk5, 1);
+    sim_advance(s, 40);   // well past 2-hit scout kill (~25 ticks)
+    // Step 2: now send the player soldier at the enemy HQ
+    SimCommand atk4{}; atk4.type = CMD_ATTACK; atk4.player = 1; atk4.unit = 3; atk4.target = 4;
+    sim_push_command(s, &atk4, sim_current_tick(s) + 1);
     sim_advance(s, 4000);
     uint8_t win = sim_winner(s);
-    CHECK(win != 0);            // someone won (deterministic; expect 1 = player)
+    CHECK(win == 1);   // player 1 wins
     sim_destroy(s);
 }
