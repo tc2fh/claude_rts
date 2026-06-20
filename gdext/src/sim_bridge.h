@@ -55,6 +55,10 @@ public:
 
 	void command_move(int unit_id, double tx, double ty);
 	void command_stop(int unit_id);
+	void command_train(int hq_id, int unit_type);    // CMD_TRAIN (param = unit type)
+	void command_harvest(int unit_id, int node_id);  // CMD_HARVEST
+	void command_attack(int unit_id, int target_id); // CMD_ATTACK
+	int winner() const;                              // 0 = ongoing, else winning owner
 
 	int64_t state_hash() const;
 

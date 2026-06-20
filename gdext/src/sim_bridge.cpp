@@ -37,6 +37,10 @@ void SimBridge::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("map_passable"), &SimBridge::map_passable);
 	ClassDB::bind_method(D_METHOD("command_move", "unit_id", "tx", "ty"), &SimBridge::command_move);
 	ClassDB::bind_method(D_METHOD("command_stop", "unit_id"), &SimBridge::command_stop);
+	ClassDB::bind_method(D_METHOD("command_train", "hq_id", "unit_type"), &SimBridge::command_train);
+	ClassDB::bind_method(D_METHOD("command_harvest", "unit_id", "node_id"), &SimBridge::command_harvest);
+	ClassDB::bind_method(D_METHOD("command_attack", "unit_id", "target_id"), &SimBridge::command_attack);
+	ClassDB::bind_method(D_METHOD("winner"), &SimBridge::winner);
 	ClassDB::bind_method(D_METHOD("state_hash"), &SimBridge::state_hash);
 	ClassDB::bind_method(D_METHOD("set_input_delay", "n"), &SimBridge::set_input_delay);
 	ClassDB::bind_method(D_METHOD("get_input_delay"), &SimBridge::get_input_delay);
@@ -203,6 +207,46 @@ void SimBridge::command_stop(int unit_id) {
 	c.player = 1;
 	c.unit = (uint32_t)unit_id;
 	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+void SimBridge::command_train(int hq_id, int unit_type) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_TRAIN;
+	c.player = 1;
+	c.unit = (uint32_t)hq_id;
+	c.param = (uint16_t)unit_type;
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+void SimBridge::command_harvest(int unit_id, int node_id) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_HARVEST;
+	c.player = 1;
+	c.unit = (uint32_t)unit_id;
+	c.target = (uint32_t)node_id;
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+void SimBridge::command_attack(int unit_id, int target_id) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_ATTACK;
+	c.player = 1;
+	c.unit = (uint32_t)unit_id;
+	c.target = (uint32_t)target_id;
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+int SimBridge::winner() const {
+	return world ? (int)sim_winner(world) : 0;
 }
 
 int64_t SimBridge::state_hash() const {

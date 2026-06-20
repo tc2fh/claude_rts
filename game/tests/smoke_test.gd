@@ -35,8 +35,14 @@ func _initialize() -> void:
 		push_error("[smoke] entity_meta size %d, expected %d" % [meta.size(), ids.size() * 5]); fail += 1
 	if not ids.is_empty():
 		sim.command_move(int(ids[0]), 5.0, 5.0)  # must not crash
+		sim.command_train(int(ids[0]), 4)        # CMD_TRAIN soldier (no-op if not an HQ)
+		sim.command_harvest(int(ids[0]), int(ids[0]))
+		sim.command_attack(int(ids[0]), int(ids[0]))
 		sim.advance(1)
-	print("[smoke] sim OK — tick=%d entities=%d" % [int(sim.tick()), ids.size()])
+	var win := int(sim.winner())
+	if win < 0 or win > 2:
+		push_error("[smoke] winner() out of range: %d" % win); fail += 1
+	print("[smoke] sim OK — tick=%d entities=%d winner=%d" % [int(sim.tick()), ids.size(), win])
 
 	# 3. Map query (B's 2b) — verify the grid flows sim -> gdext -> GDScript.
 	var msz: Vector2i = sim.map_size()

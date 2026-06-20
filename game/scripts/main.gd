@@ -18,6 +18,7 @@ const TYPE_WORKER := 1
 const TYPE_HQ := 2
 const TYPE_RESOURCE := 3
 const TYPE_SOLDIER := 4
+const MY_PLAYER := 1   # player owns owner==1; enemy is owner==2
 
 var _sim = null             ## untyped: methods are GDExtension-provided (dynamic dispatch)
 var _accum := 0.0
@@ -66,7 +67,7 @@ func _process(delta: float) -> void:
 	_ids = _sim.entity_ids()
 	_render = _sim.render_state(_alpha)
 	_meta = _sim.entity_meta()
-	_hud.set_stats(int(_sim.tick()), int(_sim.get_resource(1)), _selected.size())
+	_hud.set_stats(int(_sim.tick()), int(_sim.get_resource(1)), _selected.size(), int(_sim.winner()), MY_PLAYER)
 	queue_redraw()
 
 func _world_px(i: int) -> Vector2:
@@ -161,10 +162,15 @@ func _input(event: InputEvent) -> void:
 				_dragging = false
 				queue_redraw()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			_issue_move(get_global_mouse_position())
+			_issue_context_command(get_global_mouse_position())
 	elif event is InputEventMouseMotion and _dragging:
 		_drag_now = get_global_mouse_position()
 		queue_redraw()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_T:
+			_train_at_selected_hqs(TYPE_SOLDIER)
+		elif event.keycode == KEY_E:
+			_train_at_selected_hqs(TYPE_WORKER)
 
 func _apply_selection() -> void:
 	_selected.clear()
@@ -186,10 +192,39 @@ func _apply_selection() -> void:
 			if r.has_point(_world_px(i)):
 				_selected[_ids[i]] = true
 
-func _issue_move(target_px: Vector2) -> void:
+func _entity_index_at(px: Vector2) -> int:
+	var best := -1
+	var best_d := UNIT_RADIUS * 1.6
+	for i in _ids.size():
+		var d := _world_px(i).distance_to(px)
+		if d < best_d:
+			best_d = d
+			best = i
+	return best
+
+func _issue_context_command(target_px: Vector2) -> void:
 	if _selected.is_empty():
 		return
+	var ti := _entity_index_at(target_px)
+	if ti >= 0:
+		var t_id := _ids[ti]
+		var t_owner := _meta[ti * 5 + 1]
+		var t_type := _meta[ti * 5 + 0]
+		if t_owner != 0 and t_owner != MY_PLAYER:   # enemy -> attack
+			for id in _selected.keys():
+				_sim.command_attack(int(id), t_id)
+			return
+		if t_type == TYPE_RESOURCE:                 # resource node -> harvest
+			for id in _selected.keys():
+				_sim.command_harvest(int(id), t_id)
+			return
+	# ground -> move
 	var wx := target_px.x / PX_PER_UNIT
 	var wy := target_px.y / PX_PER_UNIT
 	for id in _selected.keys():
 		_sim.command_move(int(id), wx, wy)
+
+func _train_at_selected_hqs(unit_type: int) -> void:
+	for i in _ids.size():
+		if _selected.has(_ids[i]) and _meta[i * 5 + 0] == TYPE_HQ:
+			_sim.command_train(int(_ids[i]), unit_type)
