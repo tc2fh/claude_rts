@@ -15,7 +15,7 @@
   - `[B]` Sim event channel (attack-hit / trained / died) over the ABI
   - `[B]` Placeholder SFX assets (synthesized WAVs)
   - `[T]` SC2 hotkeys (A/M/S/H/P + click flow), zoom-to-cursor, SFX playback wired to events + command-issue
-- **Batch 2 — control depth & polish** *(later)*: control groups (Ctrl+1–9 / 1–9 / double-tap center), shift-queued waypoints, double-click select-type, command-feedback markers, hit-flash VFX.
+- **Batch 2 — control depth & polish** *(later)*: control groups (Ctrl+1–9 / 1–9 / double-tap center), shift-queued waypoints, double-click select-type, command-feedback markers, hit-flash VFX, **idle auto-acquire with leash/return-to-post** (the SC2 "step forward to engage, then return" feel `[B]`).
 - **Batch 3 — macro & game-feel** *(later)*: richer starting scenario (real army, multiple nodes, enemy base), `CMD_BUILD` behavior, smarter enemy AI, soft unit collision, minimap.
 
 ---
@@ -53,6 +53,12 @@ struct COrder {
 | `ORD_ATTACK_TARGET` | chase + attack `target` | chase `target`; when it dies/vanishes → `ORD_STOP` |
 
 Key change vs today: **acquisition is gated by stance** — `sys_combat` skips acquisition entirely for `ORD_MOVE`, restricts it to weapon range for `ORD_HOLD`/`ORD_STOP`, and (the current behavior) chases for the aggressive orders. After an aggressive unit loses its target it must **resume its order's movement** (re-path to `dest`/patrol endpoint) rather than just halting.
+
+**Deliberate stance — idle/stopped units are defensive, not roaming.** Today every armed unit auto-acquires and chases anything in `ACQUIRE_RANGE`, so units wander off after a fight and you can't park an army. After this change, idle/stop/hold units only swing at what's already in weapon range and never self-move — your units stay where you put them; you use **attack-move** to be aggressive. The SC2 "idle unit steps forward a little to engage, then returns" feel (auto-acquire with a **leash/return-to-post**) is deferred to **Batch 2** — it needs an anchor position + leash distance, and defensive-hold is the safer, more controllable default for the MVP.
+
+**Stop clears the order fully:** `CMD_STOP` drops the move path **and** the forced attack target (`COrder.target`), leaving the unit in defensive `ORD_STOP` — not just halting movement as today.
+
+**Orders override harvest:** issuing `CMD_MOVE`/`CMD_ATTACK_MOVE`/`CMD_PATROL`/`CMD_HOLD`/`CMD_STOP`/`CMD_ATTACK` on a worker that's mid-harvest must reset its `CHarvester` phase to `HARV_IDLE`, so the new order takes precedence (today the harvest state machine would keep redirecting the worker — a latent bug). Harvest only resumes on a fresh `CMD_HARVEST`.
 
 **New command types** (append to `SimCommandType`, preserving existing ordinals):
 `CMD_ATTACK_MOVE` (uses `tx,ty`), `CMD_HOLD` (no args), `CMD_PATROL` (uses `tx,ty`). Existing commands re-map onto orders: `CMD_MOVE`→`ORD_MOVE` (now **passive**), `CMD_ATTACK`(target)→`ORD_ATTACK_TARGET`, `CMD_STOP`→`ORD_STOP`. The enemy-AI scout's old `home_target` becomes `ORD_ATTACK_TARGET(player HQ)`.
