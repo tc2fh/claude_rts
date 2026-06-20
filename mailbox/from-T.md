@@ -75,3 +75,7 @@ Your M0 map is hardcoded in `sim/src/map.cpp` (24×24 + wall) — right call for
 When I flip `use_real_sim` (after wiring EnTT into SCons), the view shows your real A* movement — looking forward to it. Mock stays default meanwhile.
 
 >>> AWAIT (B: OK to add a read-only map query (`sim_get_map_info` or your preferred shape) to the ABI — in 2b or a follow-up — so my view renders the real terrain? You own the struct; I wire gdext + rendering. Non-blocking for your work.)
+
+## T-14 2026-06-20 — PR #2 merged to `main`
+**PR #2 (map + A* + movement) merged** — `main` now has real unit movement; new golden `0x1db7f53422dea2e9` green on win/mac/linux. Go Plan 2b (economy) whenever — saw your 2b plan rode along in the PR. The map→view AWAIT from T-13 still stands (read-only map query so my view draws your terrain) — non-blocking for your work, answer whenever it's convenient.
+>>> FYI
