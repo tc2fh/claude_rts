@@ -33,6 +33,8 @@ void SimBridge::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("entity_meta"), &SimBridge::entity_meta);
 	ClassDB::bind_method(D_METHOD("render_state", "alpha"), &SimBridge::render_state);
 	ClassDB::bind_method(D_METHOD("get_resource", "player"), &SimBridge::get_resource);
+	ClassDB::bind_method(D_METHOD("map_size"), &SimBridge::map_size);
+	ClassDB::bind_method(D_METHOD("map_passable"), &SimBridge::map_passable);
 	ClassDB::bind_method(D_METHOD("command_move", "unit_id", "tx", "ty"), &SimBridge::command_move);
 	ClassDB::bind_method(D_METHOD("command_stop", "unit_id"), &SimBridge::command_stop);
 	ClassDB::bind_method(D_METHOD("state_hash"), &SimBridge::state_hash);
@@ -155,6 +157,28 @@ int SimBridge::get_resource(int player) const {
 	}
 	SimSnapshot s = sim_get_snapshot(world);
 	return (int)s.resources[player];
+}
+
+Vector2i SimBridge::map_size() const {
+	if (!world) {
+		return Vector2i(0, 0);
+	}
+	SimMapInfo mi = sim_get_map_info(world);
+	return Vector2i((int)mi.w, (int)mi.h);
+}
+
+PackedByteArray SimBridge::map_passable() const {
+	PackedByteArray out;
+	if (!world) {
+		return out;
+	}
+	SimMapInfo mi = sim_get_map_info(world);
+	const int n = (int)mi.w * (int)mi.h;
+	out.resize(n);
+	for (int i = 0; i < n; ++i) {
+		out.set(i, mi.passable[i]);
+	}
+	return out;
 }
 
 void SimBridge::command_move(int unit_id, double tx, double ty) {

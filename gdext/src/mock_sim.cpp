@@ -156,6 +156,15 @@ uint64_t sim_state_hash(const SimWorld *w) {
 	return h;
 }
 
+SimMapInfo sim_get_map_info(const SimWorld *w) {
+	(void)w;
+	static uint8_t passable[24 * 24];
+	for (int i = 0; i < 24 * 24; ++i) {
+		passable[i] = 1; // mock: fully open 24x24
+	}
+	return SimMapInfo{ 24, 24, passable };
+}
+
 } // extern "C"
 
 #endif // SIM_RTS_USE_REAL_SIM

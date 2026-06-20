@@ -38,7 +38,21 @@ func _initialize() -> void:
 		sim.advance(1)
 	print("[smoke] sim OK — tick=%d entities=%d" % [int(sim.tick()), ids.size()])
 
-	# 3. Game scripts compile + the main scene loads (parse / structure validation).
+	# 3. Map query (B's 2b) — verify the grid flows sim -> gdext -> GDScript.
+	var msz: Vector2i = sim.map_size()
+	var passable: PackedByteArray = sim.map_passable()
+	var blocked := 0
+	for b in passable:
+		if b == 0:
+			blocked += 1
+	if msz.x <= 0 or msz.y <= 0 or passable.size() != msz.x * msz.y:
+		push_error("[smoke] map invalid: size %s, passable %d" % [str(msz), passable.size()]); fail += 1
+	elif blocked == 0:
+		push_error("[smoke] expected the M0 map to have a wall (some blocked cells)"); fail += 1
+	else:
+		print("[smoke] map OK — %dx%d, %d blocked cells" % [msz.x, msz.y, blocked])
+
+	# 4. Game scripts compile + the main scene loads (parse / structure validation).
 	for path in ["res://scripts/main.gd", "res://scripts/camera_rig.gd", "res://scripts/hud.gd", "res://main.tscn"]:
 		if ResourceLoader.load(path) == null:
 			push_error("[smoke] failed to load %s" % path); fail += 1

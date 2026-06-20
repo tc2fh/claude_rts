@@ -2,8 +2,10 @@
 #define SIM_RTS_SIM_BRIDGE_H
 
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/vector2i.hpp>
 
 #include <vector>
 
@@ -46,6 +48,10 @@ public:
 	PackedFloat32Array render_state(double alpha) const; // [x, y, facing_rad] * n, world units
 
 	int get_resource(int player) const;
+
+	// Static map geometry (B's sim_get_map_info) — query once after create().
+	Vector2i map_size() const;            // (w, h) in cells
+	PackedByteArray map_passable() const; // w*h bytes, row-major (y*w+x): 1=open, 0=blocked
 
 	void command_move(int unit_id, double tx, double ty);
 	void command_stop(int unit_id);
