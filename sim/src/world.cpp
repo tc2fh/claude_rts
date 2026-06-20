@@ -215,6 +215,18 @@ std::uint64_t World::state_hash() const {
     return h.value;
 }
 
+void World::emit_event(std::uint16_t type, std::uint32_t a, std::uint32_t b) {
+    if (events_.size() < 4096) events_.push_back(SimEvent{type, a, b, tick_});
+}
+
+std::uint32_t World::drain_events(SimEvent* out, std::uint32_t max) {
+    std::uint32_t n = static_cast<std::uint32_t>(events_.size());
+    if (n > max) n = max;
+    for (std::uint32_t i = 0; i < n; ++i) out[i] = events_[i];
+    events_.erase(events_.begin(), events_.begin() + n);
+    return n;
+}
+
 void World::sys_harvest() {
     std::vector<std::pair<EntityId, entt::entity>> order;
     for (auto e : reg_.view<CId, CHarvester, CMobile, CPos, CUnit>())
@@ -283,11 +295,13 @@ void World::sys_production() {
                                  CUnit{TYPE_SOLDIER, hu.owner, SIM_STATE_IDLE, 0, SOLDIER_HP, SOLDIER_HP});
                 reg_.emplace<CMobile>(sdr, CMobile{fix_one / 8, {}, 0});
                 reg_.emplace<CWeapon>(sdr, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0, 0});
+                emit_event(SIM_EVT_TRAINED, id, reg_.get<CId>(sdr).id);
             } else {
                 auto w = spawn(spawn_pos,
                                CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
                 reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
                 reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
+                emit_event(SIM_EVT_TRAINED, id, reg_.get<CId>(w).id);
             }
             pr.train_type = 0;
         }
@@ -331,7 +345,7 @@ void World::sys_combat() {
         const int d = cheb(mx, my, Map::world_to_cell(tp.x), Map::world_to_cell(tp.y));
         if (d <= w.range_cells) {
             m.path.clear(); m.next = 0;
-            if (w.timer == 0) { reg_.get<CUnit>(te).hp -= w.damage; w.timer = w.cooldown; }
+            if (w.timer == 0) { reg_.get<CUnit>(te).hp -= w.damage; w.timer = w.cooldown; emit_event(SIM_EVT_ATTACK, id, w.target); }
         } else {
             m.path = find_path(map_, {mx, my}, {Map::world_to_cell(tp.x), Map::world_to_cell(tp.y)});
             m.next = m.path.size() > 1 ? 1 : m.path.size();
@@ -349,6 +363,7 @@ void World::sys_death() {
         if (u.hp <= 0) {
             if (u.type == TYPE_HQ && winner_ == 0) winner_ = (u.owner == 1) ? 2 : 1;
             dead.push_back(e);
+            emit_event(SIM_EVT_DIED, id, 0);
         }
     }
     for (auto e : dead) reg_.destroy(e);   // ids are not recycled (next_id_ only increments)

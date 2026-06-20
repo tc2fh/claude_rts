@@ -28,5 +28,6 @@ SimMapInfo sim_get_map_info(const SimWorld* h) {
     return info;
 }
 uint8_t sim_winner(const SimWorld* h) { return w(h)->winner(); }
+uint32_t sim_drain_events(SimWorld* h, SimEvent* out, uint32_t max) { return w(h)->drain_events(out, max); }
 
 }

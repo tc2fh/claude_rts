@@ -81,6 +81,9 @@ typedef struct {            /* static per match; query once after sim_create. */
     const uint8_t* passable; /* w*h bytes, row-major (y*w + x): 1 = open, 0 = blocked. Sim-owned; do not free. */
 } SimMapInfo;
 
+typedef enum { SIM_EVT_ATTACK = 1, SIM_EVT_TRAINED = 2, SIM_EVT_DIED = 3 } SimEventType;
+typedef struct { uint16_t type; uint32_t a, b; uint64_t tick; } SimEvent;
+
 typedef struct SimWorld SimWorld; /* opaque handle */
 
 SimWorld*  sim_create(uint64_t seed, uint32_t map_id);
@@ -92,6 +95,7 @@ SimSnapshot sim_get_snapshot(const SimWorld*);                      /* latest pu
 uint64_t   sim_state_hash(const SimWorld*);                         /* determinism / desync oracle + test target */
 SimMapInfo sim_get_map_info(const SimWorld*);                       /* static map; query once after sim_create */
 uint8_t    sim_winner(const SimWorld*);                             /* 0=ongoing, 1=player1 wins, 2=player2 wins */
+uint32_t   sim_drain_events(SimWorld*, SimEvent* out, uint32_t max); /* copies up to max accumulated events into out, clears the queue, returns count written */
 
 #ifdef __cplusplus
 }
