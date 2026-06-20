@@ -4,21 +4,23 @@
 #   scons platform=macos   arch=universal target=template_debug|template_release
 #   scons platform=windows arch=x86_64    target=template_debug|template_release
 #
-# Extra option:
-#   use_real_sim=yes   link sim/ instead of the bundled mock
-#                      (mock_sim.cpp self-disables via SIM_RTS_USE_REAL_SIM)
+# Sim backend (default = B's real deterministic sim):
+#   (default)        links sim/src + the EnTT submodule (gdext/entt)
+#   use_real_sim=no  builds the bundled mock instead (mock_sim.cpp; no EnTT needed) —
+#                    handy for isolated view dev. The mock self-disables when the real
+#                    sim is built (SIM_RTS_USE_REAL_SIM).
 import os
 
 env = SConscript("godot-cpp/SConstruct")
 
 env.Append(CPPPATH=["src/", os.path.join("..", "sim", "include")])
 
-sources = Glob("src/*.cpp")
+sources = Glob("src/*.cpp")  # includes mock_sim.cpp (self-disables under SIM_RTS_USE_REAL_SIM)
 
-if ARGUMENTS.get("use_real_sim", "no") == "yes":
-    # The real deterministic sim provides sim_abi.h's implementation; the mock
-    # compiles to nothing. B's sim/ PR finalizes the exact source/lib wiring.
+# Default to B's real deterministic sim; pass use_real_sim=no for the mock.
+if ARGUMENTS.get("use_real_sim", "yes") == "yes":
     env.Append(CPPDEFINES=["SIM_RTS_USE_REAL_SIM"])
+    env.Append(CPPPATH=[os.path.join("entt", "single_include")])  # EnTT (header-only, pinned submodule)
     sources += Glob(os.path.join("..", "sim", "src", "*.cpp"))
 
 project_bin = os.path.join("..", "game", "bin")

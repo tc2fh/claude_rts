@@ -2,3 +2,6 @@
 	path = gdext/godot-cpp
 	url = https://github.com/godotengine/godot-cpp
 	branch = 4.5
+[submodule "gdext/entt"]
+	path = gdext/entt
+	url = https://github.com/skypjack/entt
