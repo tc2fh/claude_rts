@@ -18,6 +18,9 @@
 .sconsign.dblite
 compile_commands.json
 
+# --- Export output ---
+/build/
+
 # --- OS / editor cruft ---
 .DS_Store
 Thumbs.db
