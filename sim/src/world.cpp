@@ -1,5 +1,6 @@
 #include "sim/world.h"
 #include "sim/components.h"
+#include "sim/constants.h"
 #include "sim/hash.h"
 #include "sim/pathfind.h"
 #include <algorithm>
@@ -12,21 +13,33 @@ World::World(std::uint64_t seed, std::uint32_t map_id) : map_(map_id), rng_(seed
     publish_snapshot();
 }
 
-EntityId World::spawn(CPos pos, CMobile mob, CUnit unit) {
+entt::entity World::spawn(CPos pos, CUnit unit) {
     auto e = reg_.create();
-    EntityId id = next_id_++;
-    reg_.emplace<CId>(e, CId{id});
+    reg_.emplace<CId>(e, CId{next_id_++});
     reg_.emplace<CPos>(e, pos);
-    reg_.emplace<CMobile>(e, std::move(mob));
     reg_.emplace<CUnit>(e, unit);
-    return id;
+    return e;
 }
 
 void World::spawn_initial() {
-    const fix speed = fix_one / 8;   // 0.125 cell/tick
-    CUnit u{/*type*/1, /*owner*/1, /*state*/SIM_STATE_IDLE, /*facing*/0, /*hp*/100, /*hp_max*/100};
-    spawn(CPos{Map::cell_to_world(2), Map::cell_to_world(2)}, CMobile{speed, {}, 0}, u);
-    spawn(CPos{Map::cell_to_world(3), Map::cell_to_world(3)}, CMobile{speed, {}, 0}, u);
+    auto hq = spawn(CPos{Map::cell_to_world(4), Map::cell_to_world(4)},
+                    CUnit{TYPE_HQ, 1, SIM_STATE_IDLE, 0, 500, 500});
+    const EntityId hq_id = reg_.get<CId>(hq).id;
+    reg_.emplace<CProducer>(hq, CProducer{});
+
+    auto wk = spawn(CPos{Map::cell_to_world(5), Map::cell_to_world(5)},
+                    CUnit{TYPE_WORKER, 1, SIM_STATE_IDLE, 0, 40, 40});
+    reg_.emplace<CMobile>(wk, CMobile{fix_one / 8, {}, 0});
+    reg_.emplace<CHarvester>(wk, CHarvester{HARV_IDLE, 0, 0, hq_id, 0});
+
+    auto node = spawn(CPos{Map::cell_to_world(8), Map::cell_to_world(8)},
+                      CUnit{TYPE_RESOURCE, 0, SIM_STATE_IDLE, 0, 1, 1});
+    reg_.emplace<CResource>(node, CResource{NODE_AMOUNT});
+}
+
+entt::entity World::find_by_id(EntityId id) {
+    for (auto e : reg_.view<CId>()) if (reg_.get<CId>(e).id == id) return e;
+    return entt::null;
 }
 
 void World::advance(std::uint32_t ticks) {
@@ -36,6 +49,8 @@ void World::advance(std::uint32_t ticks) {
 void World::step() {
     ++tick_;
     apply_commands_for(tick_);
+    sys_harvest();
+    sys_production();
     sys_movement();
     publish_snapshot();
 }
@@ -95,6 +110,33 @@ void World::apply_commands_for(std::uint64_t t) {
                 break;
             }
         }
+        else if (c.type == CMD_TRAIN) {
+            auto he = find_by_id(c.unit);
+            if (he != entt::null && reg_.all_of<CProducer, CUnit>(he)) {
+                auto& pr = reg_.get<CProducer>(he);
+                const auto& hu = reg_.get<CUnit>(he);
+                if (pr.train_type == 0 && resources_[hu.owner] >= WORKER_COST) {
+                    resources_[hu.owner] -= WORKER_COST;
+                    pr.train_type = TYPE_WORKER;
+                    pr.timer = BUILD_TIME;
+                }
+            }
+        }
+        else if (c.type == CMD_HARVEST) {
+            auto we = find_by_id(c.unit);
+            auto ne = find_by_id(c.target);
+            if (we != entt::null && ne != entt::null &&
+                reg_.all_of<CHarvester, CMobile, CPos>(we) && reg_.all_of<CResource, CPos>(ne)) {
+                auto& h = reg_.get<CHarvester>(we);
+                auto& m = reg_.get<CMobile>(we);
+                const auto& p  = reg_.get<CPos>(we);
+                const auto& np = reg_.get<CPos>(ne);
+                h.node = c.target; h.phase = HARV_TO_NODE;
+                m.path = find_path(map_, {Map::world_to_cell(p.x), Map::world_to_cell(p.y)},
+                                         {Map::world_to_cell(np.x), Map::world_to_cell(np.y)});
+                m.next = m.path.size() > 1 ? 1 : m.path.size();
+            }
+        }
     }
 }
 
@@ -114,7 +156,7 @@ void World::publish_snapshot() {
     front_.tick = tick_;
     front_.entities = out.data();
     front_.count = static_cast<std::uint32_t>(out.size());
-    for (int i = 0; i < 8; ++i) front_.resources[i] = 0;
+    for (int i = 0; i < 8; ++i) front_.resources[i] = resources_[i];
     active_ = next;
 }
 
@@ -133,7 +175,79 @@ std::uint64_t World::state_hash() const {
         h.add_u32(u.type); h.add_u32(u.owner); h.add_u32(u.state); h.add_u32(u.facing);
         h.add_i32(u.hp);
     }
+    for (int i = 0; i < 8; ++i) h.add_i32(resources_[i]);
     return h.value;
+}
+
+void World::sys_harvest() {
+    std::vector<std::pair<EntityId, entt::entity>> order;
+    for (auto e : reg_.view<CId, CHarvester, CMobile, CPos, CUnit>())
+        order.push_back({reg_.get<CId>(e).id, e});
+    std::sort(order.begin(), order.end());
+    for (auto& [id, e] : order) {
+        auto& h = reg_.get<CHarvester>(e);
+        auto& m = reg_.get<CMobile>(e);
+        auto& p = reg_.get<CPos>(e);
+        auto& u = reg_.get<CUnit>(e);
+        const bool arrived = (m.next >= m.path.size());
+        auto path_to = [&](EntityId target) {
+            auto te = find_by_id(target);
+            if (te == entt::null) return;
+            const auto& tp = reg_.get<CPos>(te);
+            m.path = find_path(map_, {Map::world_to_cell(p.x), Map::world_to_cell(p.y)},
+                                     {Map::world_to_cell(tp.x), Map::world_to_cell(tp.y)});
+            m.next = m.path.size() > 1 ? 1 : m.path.size();
+        };
+        switch (h.phase) {
+            case HARV_TO_NODE:
+                if (arrived) { h.phase = HARV_MINING; h.timer = MINE_TIME; }
+                break;
+            case HARV_MINING:
+                if (h.timer > 0) --h.timer;
+                if (h.timer == 0) {
+                    auto ne = find_by_id(h.node);
+                    if (ne != entt::null && reg_.all_of<CResource>(ne)) {
+                        auto& res = reg_.get<CResource>(ne);
+                        const std::int32_t take = res.amount < LOAD ? res.amount : LOAD;
+                        res.amount -= take; h.carried = take;
+                    }
+                    path_to(h.hq);
+                    h.phase = HARV_TO_HQ;
+                }
+                break;
+            case HARV_TO_HQ:
+                if (arrived) {
+                    resources_[u.owner] += h.carried; h.carried = 0;
+                    auto ne = find_by_id(h.node);
+                    const std::int32_t remaining =
+                        (ne != entt::null && reg_.all_of<CResource>(ne)) ? reg_.get<CResource>(ne).amount : 0;
+                    if (remaining > 0) { path_to(h.node); h.phase = HARV_TO_NODE; }
+                    else { h.phase = HARV_IDLE; }
+                }
+                break;
+            default: break;
+        }
+    }
+}
+void World::sys_production() {
+    std::vector<std::pair<EntityId, entt::entity>> order;
+    for (auto e : reg_.view<CId, CProducer, CPos, CUnit>()) order.push_back({reg_.get<CId>(e).id, e});
+    std::sort(order.begin(), order.end());
+    for (auto& [id, e] : order) {
+        auto& pr = reg_.get<CProducer>(e);
+        if (pr.train_type == 0) continue;
+        if (pr.timer > 0) --pr.timer;
+        if (pr.timer == 0) {
+            const auto& hp = reg_.get<CPos>(e);
+            const auto& hu = reg_.get<CUnit>(e);
+            const int cx = Map::world_to_cell(hp.x) + 1, cy = Map::world_to_cell(hp.y) + 1;
+            auto w = spawn(CPos{Map::cell_to_world(cx), Map::cell_to_world(cy)},
+                           CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
+            reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
+            reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
+            pr.train_type = 0;
+        }
+    }
 }
 
 } // namespace sim

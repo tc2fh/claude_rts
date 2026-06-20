@@ -19,5 +19,13 @@ void sim_push_command(SimWorld* h, const SimCommand* c, uint64_t exec_tick) {
 }
 SimSnapshot sim_get_snapshot(const SimWorld* h) { return w(h)->snapshot(); }
 uint64_t sim_state_hash(const SimWorld* h) { return w(h)->state_hash(); }
+SimMapInfo sim_get_map_info(const SimWorld* h) {
+    const auto& m = w(h)->map();
+    SimMapInfo info;
+    info.w = static_cast<uint16_t>(m.width());
+    info.h = static_cast<uint16_t>(m.height());
+    info.passable = m.passable_data();
+    return info;
+}
 
 }

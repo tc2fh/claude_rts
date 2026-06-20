@@ -69,6 +69,11 @@ typedef struct {                  /* POD, view -> sim */
   uint16_t param;                 /* unit/structure type for train/build */
 } SimCommand;
 
+typedef struct {            /* static per match; query once after sim_create. */
+    uint16_t w, h;
+    const uint8_t* passable; /* w*h bytes, row-major (y*w + x): 1 = open, 0 = blocked. Sim-owned; do not free. */
+} SimMapInfo;
+
 typedef struct SimWorld SimWorld; /* opaque handle */
 
 SimWorld*  sim_create(uint64_t seed, uint32_t map_id);
@@ -78,6 +83,7 @@ uint64_t   sim_current_tick(const SimWorld*);
 void       sim_push_command(SimWorld*, const SimCommand*, uint64_t exec_tick); /* exec_tick = lockstep input-delay */
 SimSnapshot sim_get_snapshot(const SimWorld*);                      /* latest published, read-only */
 uint64_t   sim_state_hash(const SimWorld*);                         /* determinism / desync oracle + test target */
+SimMapInfo sim_get_map_info(const SimWorld*);                       /* static map; query once after sim_create */
 
 #ifdef __cplusplus
 }

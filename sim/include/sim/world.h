@@ -23,14 +23,18 @@ public:
     void push_command(const SimCommand& cmd, std::uint64_t exec_tick);
     const SimSnapshot& snapshot() const { return front_; }
     std::uint64_t state_hash() const;
+    const Map& map() const { return map_; }
 
 private:
     void step();
     void apply_commands_for(std::uint64_t t);
     void sys_movement();
     void publish_snapshot();
-    EntityId spawn(CPos pos, CMobile mob, CUnit unit);
+    entt::entity spawn(CPos pos, CUnit unit);
     void spawn_initial();
+    entt::entity find_by_id(EntityId id);
+    void sys_harvest();
+    void sys_production();
 
     entt::registry reg_;
     Map            map_;
@@ -42,6 +46,7 @@ private:
     std::vector<SimEntitySnapshot> buf_[2];
     int        active_ = 0;
     SimSnapshot front_{};
+    std::int32_t resources_[8] = {0};
 };
 
 } // namespace sim
