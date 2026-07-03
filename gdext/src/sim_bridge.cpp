@@ -1,6 +1,7 @@
 #include "sim_bridge.h"
 
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 
 #include <cmath>
 #include <unordered_map>
@@ -40,7 +41,11 @@ void SimBridge::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("command_train", "hq_id", "unit_type"), &SimBridge::command_train);
 	ClassDB::bind_method(D_METHOD("command_harvest", "unit_id", "node_id"), &SimBridge::command_harvest);
 	ClassDB::bind_method(D_METHOD("command_attack", "unit_id", "target_id"), &SimBridge::command_attack);
+	ClassDB::bind_method(D_METHOD("command_attack_move", "unit_id", "tx", "ty"), &SimBridge::command_attack_move);
+	ClassDB::bind_method(D_METHOD("command_hold", "unit_id"), &SimBridge::command_hold);
+	ClassDB::bind_method(D_METHOD("command_patrol", "unit_id", "tx", "ty"), &SimBridge::command_patrol);
 	ClassDB::bind_method(D_METHOD("winner"), &SimBridge::winner);
+	ClassDB::bind_method(D_METHOD("drain_events"), &SimBridge::drain_events);
 	ClassDB::bind_method(D_METHOD("state_hash"), &SimBridge::state_hash);
 	ClassDB::bind_method(D_METHOD("set_input_delay", "n"), &SimBridge::set_input_delay);
 	ClassDB::bind_method(D_METHOD("get_input_delay"), &SimBridge::get_input_delay);
@@ -245,8 +250,65 @@ void SimBridge::command_attack(int unit_id, int target_id) {
 	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
 }
 
+void SimBridge::command_attack_move(int unit_id, double tx, double ty) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_ATTACK_MOVE;
+	c.player = 1;
+	c.unit = (uint32_t)unit_id;
+	c.tx = d_to_fix(tx);
+	c.ty = d_to_fix(ty);
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+void SimBridge::command_hold(int unit_id) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_HOLD;
+	c.player = 1;
+	c.unit = (uint32_t)unit_id;
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
+void SimBridge::command_patrol(int unit_id, double tx, double ty) {
+	if (!world) {
+		return;
+	}
+	SimCommand c = {};
+	c.type = CMD_PATROL;
+	c.player = 1;
+	c.unit = (uint32_t)unit_id;
+	c.tx = d_to_fix(tx);
+	c.ty = d_to_fix(ty);
+	sim_push_command(world, &c, sim_current_tick(world) + (uint64_t)input_delay_);
+}
+
 int SimBridge::winner() const {
 	return world ? (int)sim_winner(world) : 0;
+}
+
+Array SimBridge::drain_events() {
+	Array out;
+	if (!world) {
+		return out;
+	}
+	SimEvent buf[256];
+	uint32_t n;
+	while ((n = sim_drain_events(world, buf, 256)) > 0) {
+		for (uint32_t i = 0; i < n; ++i) {
+			Dictionary d;
+			d["type"] = (int)buf[i].type;
+			d["a"] = (int)buf[i].a;
+			d["b"] = (int)buf[i].b;
+			d["tick"] = (int64_t)buf[i].tick;
+			out.push_back(d);
+		}
+	}
+	return out;
 }
 
 int64_t SimBridge::state_hash() const {
