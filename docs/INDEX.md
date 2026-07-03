@@ -97,7 +97,9 @@ Batching-invariance pattern: total ticks divisible by every chunk size (595=5·7
 
 > `create(seed,map_id)` · `destroy()` · `is_ready()` · `advance(ticks)` · `tick()` · `entity_count()` · `entity_ids() → PackedInt32Array` · `entity_meta() → PackedInt32Array` stride 5 `[type,owner,state,hp,hp_max]` · `render_state(alpha) → PackedFloat32Array` stride 3 `[x,y,facing_rad]` world units, prev→curr lerp matched by id · `get_resource(player)` (reads a FRESH snapshot — can be newer than tick()) · `map_size() → Vector2i` · `map_passable() → PackedByteArray` · `command_move(id,x,y)` · `command_stop(id)` · `command_train(hq_id,unit_type)` · `command_harvest(id,node_id)` · `command_attack(id,target_id)` · `winner()` · `state_hash()` (int64, may be negative) · `set_input_delay(n)`/`get_input_delay()`
 
-All methods are safe no-ops with no world. **Not yet wrapped:** `CMD_ATTACK_MOVE`/`CMD_HOLD`/`CMD_PATROL`, `sim_drain_events` (and the mock lacks a `sim_drain_events` stub — wrapping events breaks `use_real_sim=no` until the mock grows one).
+> plus (PR #13): `command_attack_move(id,x,y)` · `command_hold(id)` · `command_patrol(id,x,y)` · `drain_events() → Array` of `{type,a,b,tick}` Dictionaries
+
+All methods are safe no-ops with no world. The mock carries a zero-event `sim_drain_events` stub (PR #13) so `use_real_sim=no` keeps linking.
 
 **src/mock_sim.cpp** — entire file `#ifndef SIM_RTS_USE_REAL_SIM`. 3 drifting units, 0..32-unit box (but reports a 24×24 map — don't infer consistency), only MOVE/STOP, **applies commands immediately** (ignores exec_tick), winner always 0.
 
@@ -107,23 +109,25 @@ All methods are safe no-ops with no world. **Not yet wrapped:** `CMD_ATTACK_MOVE
 
 ## game/ — Godot 4 view (lane T)
 
-Single 4-node scene `main.tscn`: Main (Node2D, `main.gd`) + Camera2D (`camera_rig.gd`) + HUD CanvasLayer→Label (`hud.gd`). **Everything is drawn immediate-mode in `Main._draw()`** — no per-entity nodes, no sprites (HQ=square, resource=yellow diamond, units=owner-colored circles + facing line, walls=gray rects). No InputMap in `project.godot` — all input is raw keycodes.
+Single 4-node scene `main.tscn`: Main (Node2D, `main.gd`) + Camera2D (`camera_rig.gd`) + HUD CanvasLayer→Label (`hud.gd`). **Everything is drawn immediate-mode in `Main._draw()`** — no per-entity nodes. Entities draw as generated sprites from `assets/sprites/` (PR #13), falling back to flat primitives (HQ=square, resource=diamond, units=circles) when textures are unimported. No InputMap in `project.godot` — all input is raw keycodes.
 
 | File | Contents |
 |---|---|
 | `project.godot` | Godot 4.5 features, Forward+, 1280×720 canvas_items stretch; minimal (no input/audio sections) |
-| `scripts/main.gd` | `TICK_HZ=24` accumulator → `advance(1)` per tick, `render_state(alpha)` interp; `PX_PER_UNIT=32`; `SEED=1234`/`MAP_ID=0` hardcoded; LMB box-select/click-pick (any owner), RMB context (enemy→attack, resource→harvest, ground→move), `T`/`E` train soldier/worker at selected HQs; HUD update + `queue_redraw()` per frame |
-| `scripts/camera_rig.gd` | WASD/arrows/edge pan (800 px/s ÷ zoom), wheel zoom 1.1× clamped [0.4,3.0] (not cursor-anchored yet); start position hardcodes a 32×32 assumption (doesn't query map_size) |
-| `scripts/hud.gd` | `HudPanel` Label; `set_stats(tick, minerals, selected, winner, my_player)`; tick<0 → "build gdext" error text; victory/defeat banner |
-| `tests/smoke_test.gd` | Headless CI gate: SimBridge exists → create/advance 50 → stride asserts (ids×3 floats, ids×5 ints) → command no-crash calls → map has ≥1 wall → scripts+scene load. Breaks first on snapshot-layout changes |
+| `scripts/main.gd` | `TICK_HZ=24` accumulator → `advance(1)` per tick, `render_state(alpha)` interp; `PX_PER_UNIT=32`; `SEED=1234`/`MAP_ID=0` hardcoded. Input (PR #13): LMB box-select (prefers own units; shift additive; double-click = same type on screen), RMB smart command (enemy→attack, resource→harvest, ground→passive move), verbs `A`/`M`/`P` then click (attack-move/move/patrol, Esc cancels), `S` stop / `H` hold, `T`/`E` train, `Ctrl+1-9`/`1-9` control groups (double-tap centers camera). Drains sim events each frame → hit-flash/death-puff VFX + throttled 8-player SFX pool; command markers |
+| `scripts/camera_rig.gd` | Arrows/edge pan only — WASD are hotkeys (800 px/s ÷ zoom; edge pan only while the mouse is inside the window), zoom-to-cursor wheel 1.1× clamped [0.4,3.0], `center_on(px)`; start position hardcodes map center (doesn't query map_size) |
+| `scripts/hud.gd` | `HudPanel` Label; `set_stats(tick, minerals, selected, winner, my_player, pending_verb)`; tick<0 → "build gdext" error text; victory/defeat banner; pending-verb prompt |
+| `tests/smoke_test.gd` | Headless CI gate: SimBridge exists → create/advance 50 → stride asserts (ids×3 floats, ids×5 ints) → command no-crash calls (incl. attack-move/hold/patrol) → event-channel assert on a fresh world (ATTACK+DIED land by ~tick 40) → map has ≥1 wall → scripts+scene load. Breaks first on snapshot-layout changes |
 | `export_presets.cfg` | macOS (universal, unsigned, `../build/macos/claude_rts.zip`) + Windows x86_64; no Linux preset |
 | `assets/sfx/` | 6 generated WAVs: `cmd_move/cmd_attack/cmd_build` (view plays on input) + `hit/train_done/death` (driven by sim events) |
+| `assets/sprites/` | 7 generated PNGs (PR #13, from `tools/gen_sprites.py`): `hq/worker/soldier` × `blue/red` (48² / 32²) + `node.png`; `.import` sidecars are NOT committed — CI's `--import` step / any editor open regenerates them |
 
 ---
 
 ## tools/, CI, docs
 
 - `tools/gen_sfx.py` — stdlib synth for the 6 WAVs, 22050 Hz mono, seeded noise → byte-reproducible. Rerun after tweaking envelopes.
+- `tools/gen_sprites.py` (PR #13) — stdlib PNG writer (hand-rolled encoder, deterministic) for the 7 placeholder sprites → `game/assets/sprites/`.
 - `.github/workflows/ci.yml` — push/PR to main, concurrency-cancel per ref. **Merge gate:** `gdext` (macOS universal + Windows x86_64 release compile), `sim-tests` (ubuntu/macos/windows cmake+ctest — the per-OS golden assertion IS the cross-platform determinism proof), `smoke` (linux template_debug build + headless Godot 4.5 runs smoke_test.gd). `export-macos` (unsigned .app artifact) only on push or `feat/export*` branches. Godot `4.5-stable` hardcoded in two download steps.
 - `docs/ARCHITECTURE.md` — durable picture: lanes, determinism rules, seam contract, data-flow diagram, toolchain pins. `docs/BUILD.md` — per-platform build + troubleshooting (editor needs template_debug; "SimBridge missing" = wrong target built).
 - `docs/superpowers/specs/2026-06-19-foundation-and-m0-design.md` — founding spec; milestone ladder M0→M4; M0 scope + explicit non-goals.

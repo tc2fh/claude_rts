@@ -62,6 +62,6 @@ Cross-OS bit-identical replay is CI-enforced (same golden hash asserted on Linux
 - The state hash is a desync tripwire, not a proof: weapon cooldowns, paths, harvester/producer timers, node amounts, and pending commands are NOT hashed.
 - Post-Batch-1 order semantics: plain move is **passive**; idle/stop/hold are **defensive** (fire in weapon range, never chase). Aggression requires attack-move/attack. Any order cancels an in-progress harvest.
 - Godot: project targets 4.5 (`compatibility_minimum`); CI downloads `4.5-stable` in two hardcoded places in `ci.yml`. Locally newer 4.x works (`--headless --import` may crash on 4.6 — known engine bug, harmless). Editor requires a local `template_debug` build.
-- There is no InputMap — all input is raw keycode/mouse checks in `main.gd`/`camera_rig.gd`; new hotkeys must avoid WASD/arrows (camera pan).
+- There is no InputMap — all input is raw keycode/mouse checks in `main.gd`/`camera_rig.gd`. The camera pans with arrows/screen edges only; letter keys are SC2 command hotkeys (A/M/P/S/H/T/E) — check both files before binding a new key.
 
 Current project state, open threads, and machine-local paths live in `.claude/journal.md` (gitignored), not here.
