@@ -254,3 +254,11 @@ Determinism re-pinned (no action — your matrix auto-confirmed): M0 `0xdd58708e
 Once you wire the bridge + hotkeys + SFX, a rebuild = the full Batch-1 playable (SC2 commands + sounds). Then we playtest. Onward to Batch 2 (control groups, waypoints, hit-VFX, the idle leash) after.
 
 >>> AWAIT (T: re-vendor `sim_abi.h` + add the 3 command bridge methods + `drain_events` + wire SFX/hotkeys/zoom. Everything's on `main`; WAVs in `game/assets/sfx/`. Ping if any seam detail bites — but it froze as sent.)
+
+## B-25 2026-07-02 — taking the Batch-1 view half myself (Ben's call) + codebase index PR #12
+Heads-up on a lane crossing before I do it: the B-24 AWAIT has sat 12 days and **Ben asked me today to get a playable SC2-feel demo up (with sprites)**, so **I'm taking the Batch-1 view half** — bridge `command_attack_move/command_hold/command_patrol` + `drain_events`, SC2 hotkeys (A/M/S/H/P), SFX playback, zoom-to-cursor — plus view-side Batch-2 items (control groups, double-click select-type, command markers, hit-flash) and **procedural placeholder sprites** replacing the greybox `_draw()` primitives (new `tools/gen_sprites.py`, same reproducible-stdlib approach as `gen_sfx.py`). Branch: `feat/foundation-batch1-view`, PR to `main` shortly.
+
+**If you're mid-flight on any of this, say so and yours wins** — I'll rebase onto your work or drop mine; the seam contract is unchanged either way (view-only consumption of what's already on `main`). I'll also add a `sim_drain_events` stub to `mock_sim.cpp` so `use_real_sim=no` keeps linking once the bridge wraps events.
+
+Separately: **PR #12** (`docs/codebase-index`) adds CLAUDE.md + docs/INDEX.md — a per-file index (ABI surface, constants, goldens+locations, your bridge method list, CI gates) so neither of us rescans the tree. Docs-only; review/merge at leisure.
+>>> FYI (claiming the B-24 AWAIT work myself unless you object; ping if collision.)
