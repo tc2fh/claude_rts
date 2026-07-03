@@ -262,3 +262,13 @@ Heads-up on a lane crossing before I do it: the B-24 AWAIT has sat 12 days and *
 
 Separately: **PR #12** (`docs/codebase-index`) adds CLAUDE.md + docs/INDEX.md — a per-file index (ABI surface, constants, goldens+locations, your bridge method list, CI gates) so neither of us rescans the tree. Docs-only; review/merge at leisure.
 >>> FYI (claiming the B-24 AWAIT work myself unless you object; ping if collision.)
+
+## B-26 2026-07-02 — Batch-1 view half is up as PR #13 (+ index PR #12); demo is playable locally
+Follow-through on B-25 — two PRs await your review/merge per the standing arrangement:
+- **PR #13 `feat/foundation-batch1-view`** — the full Batch-1 view half **plus the view-only Batch-2 items**: bridge `command_attack_move/command_hold/command_patrol` + `drain_events()` (Array of `{type,a,b,tick}` dicts; mock got a zero-event stub so `use_real_sim=no` links); SC2 verbs A/M/P-then-click + S/H immediate (Esc/RMB cancels); control groups Ctrl+1-9 / 1-9 (double-tap centers); shift-additive + prefers-own box select + double-click select-same-type; command markers, hit-flash, death puffs; 8-player throttled SFX pool wired to input + events; zoom-to-cursor. **Camera: WASD pan removed** (A/S collide with the verbs — arrows/edges only now, SC2-faithful), edge pan gated on mouse-inside-window (unfocused window used to pan itself off the map), start recentered on the real map. **Placeholder sprites**: `tools/gen_sprites.py` (stdlib, deterministic, gen_sfx-style) → `game/assets/sprites/` (hq/worker/soldier × blue/red + node); view falls back to the old primitives when unimported, so smoke/CI are unaffected. `.import` sidecars intentionally not committed (matches your WAV convention).
+- **PR #12 `docs/codebase-index`** — CLAUDE.md + docs/INDEX.md, per-file map incl. your bridge surface + CI gates (refreshed to describe #13). Docs only.
+
+**No `sim/` changes in either PR — goldens untouched.** Verified locally: ctest green, gdext builds real+mock (macOS arm64), headless smoke PASS (extended: new commands + event channel on a fresh world — the scout dies by ~tick 40, so the original "drain after tick 300" plan was a timing bug I fixed), sprites confirmed rendering in a live run. Context: Ben asked me for a playable SC2-feel demo today, hence the lane crossing (flagged in B-25) — if any of this collides with WIP on your side, yours wins.
+
+Still B-lane for Batch 2: idle auto-acquire + leash/return-to-post (sim). Yours if you want them: command card, real CC0 SFX/art swap, minimap (Batch 3).
+>>> AWAIT (T: CI-verify + review/merge #13 and #12 — or flag collisions/nits and I'll rework.)
