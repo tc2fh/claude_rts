@@ -75,12 +75,13 @@ var _puffs: Array = []              # {pos, ttl}
 
 @onready var _hud: HudPanel = $HUD/Panel
 @onready var _camera = $Camera     ## untyped: center_on() is script-provided
+@onready var _minimap = get_node_or_null("HUD/Minimap")   ## optional: absent in headless scene variations
 
 func _ready() -> void:
 	if not ClassDB.class_exists("SimBridge"):
 		push_error("SimBridge GDExtension not loaded — build gdext (see docs/BUILD.md).")
 		set_process(false)
-		set_process_input(false)
+		set_process_unhandled_input(false)
 		_hud.set_stats(-1, -1)
 		return
 	_sim = ClassDB.instantiate("SimBridge")
@@ -89,6 +90,10 @@ func _ready() -> void:
 	_map_w = msz.x
 	_map_h = msz.y
 	_passable = _sim.map_passable()
+	if _minimap != null:
+		_minimap.setup(_map_w, _map_h, _passable, PX_PER_UNIT)
+		_minimap.camera_jump.connect(func(world_px: Vector2): _camera.center_on(world_px))
+		_minimap.ground_command.connect(func(world_px: Vector2): _issue_context_command(world_px))
 	_load_textures()
 	_setup_sfx()
 
@@ -128,6 +133,10 @@ func _process(delta: float) -> void:
 		_last_pos[_ids[i]] = _world_px(i)
 	_tick_fx(delta)
 	_drain_sim_events()
+	if _minimap != null:
+		var vps := get_viewport_rect().size
+		var world_size := vps / float(_camera.zoom.x)
+		_minimap.refresh(_ids, _render, _meta, Rect2(_camera.position - world_size * 0.5, world_size))
 	_hud.set_stats(int(_sim.tick()), int(_sim.get_resource(1)), _selected.size(), int(_sim.winner()), MY_PLAYER, _pending_verb)
 	queue_redraw()
 
@@ -272,7 +281,9 @@ func _rect_from(a: Vector2, b: Vector2) -> Rect2:
 	var br := Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
 	return Rect2(tl, br - tl)
 
-func _input(event: InputEvent) -> void:
+# _unhandled_input (not _input) so GUI controls — the minimap — eat their
+# clicks first; otherwise a minimap click would also box-select in the world.
+func _unhandled_input(event: InputEvent) -> void:
 	if _sim == null:
 		return
 	if event is InputEventMouseButton:

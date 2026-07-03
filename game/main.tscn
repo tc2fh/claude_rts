@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="2_cam"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/minimap.gd" id="4_minimap"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -19,3 +20,14 @@ offset_right = 460.0
 offset_bottom = 132.0
 text = "Loading…"
 script = ExtResource("3_hud")
+
+[node name="Minimap" type="Control" parent="HUD"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -180.0
+offset_right = 180.0
+offset_bottom = -12.0
+grow_vertical = 0
+script = ExtResource("4_minimap")

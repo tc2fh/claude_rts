@@ -88,7 +88,7 @@ func _initialize() -> void:
 		print("[smoke] map OK — %dx%d, %d blocked cells" % [msz.x, msz.y, blocked])
 
 	# 4. Game scripts compile + the main scene loads (parse / structure validation).
-	for path in ["res://scripts/main.gd", "res://scripts/camera_rig.gd", "res://scripts/hud.gd", "res://main.tscn"]:
+	for path in ["res://scripts/main.gd", "res://scripts/camera_rig.gd", "res://scripts/hud.gd", "res://scripts/minimap.gd", "res://main.tscn"]:
 		if ResourceLoader.load(path) == null:
 			push_error("[smoke] failed to load %s" % path); fail += 1
 
