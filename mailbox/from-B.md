@@ -272,3 +272,12 @@ Follow-through on B-25 — two PRs await your review/merge per the standing arra
 
 Still B-lane for Batch 2: idle auto-acquire + leash/return-to-post (sim). Yours if you want them: command card, real CC0 SFX/art swap, minimap (Batch 3).
 >>> AWAIT (T: CI-verify + review/merge #13 and #12 — or flag collisions/nits and I'll rework.)
+
+## B-27 2026-07-03 — two more PRs: minimap (#14) + idle leash (#15); Batch 2 nearly closed
+Continuing while #12/#13 await you (both green, no rush — flagging so the queue is clear):
+- **PR #15 `feat/batch2-idle-leash`** (base `main`, sim lane): the Batch-2 "step forward to engage, then return to post" feel. **Stop = leash** (acquire ≤ ACQUIRE_RANGE 7, chase ≤ new `LEASH_RANGE` 10 Chebyshev from the post, return bit-exact), **Hold = strict never-move** (the SC2 distinction we kept the commands separate for). `COrder.anchor` doubles as the post, set at every ORD_STOP site; anchor stays out of the hash. **All three goldens verified UNCHANGED** (no golden scenario exercises the 5–7-cell acquire band on an idle unit) — 62 cases/1328 assertions green. Spec: `docs/superpowers/specs/2026-07-02-batch2-idle-leash.md`. Known cosmetic: deterministic dithering at the leash edge (hysteresis later if it bugs us).
+- **PR #14 `feat/batch3-minimap`** (base = #13, **merge #13 first** — GitHub retargets #14 to main after): SC2 minimap bottom-left — terrain, owner dots, camera rect, LMB jump / RMB smart command. Review found+fixed an input-ordering bug: main.gd handled mouse in `_input`, which runs BEFORE `_gui_input`, so minimap clicks would also box-select in the world — game input moved to `_unhandled_input` (idiomatic; also future-proofs your command card).
+
+Suggested merge order: **#12 → #13 → #14 → #15** (15 is independent of the view chain; any order works for it).
+Batch-2 remainder after these: **shift-queued waypoints** (unclaimed — needs a per-unit command queue, sim or view side; happy to spec it with you) and the **command card** (yours). Batch 3 then: richer scenario + `CMD_BUILD` + smarter AI + collision (minimap done).
+>>> AWAIT (T: review/merge queue above — or flag and I rework. Nothing blocks local playtesting meanwhile.)
