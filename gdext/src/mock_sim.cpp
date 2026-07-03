@@ -170,6 +170,13 @@ uint8_t sim_winner(const SimWorld *w) {
 	return 0; // mock: never-ending
 }
 
+uint32_t sim_drain_events(SimWorld *w, SimEvent *out, uint32_t max) {
+	(void)w;
+	(void)out;
+	(void)max;
+	return 0; // mock: emits no events
+}
+
 } // extern "C"
 
 #endif // SIM_RTS_USE_REAL_SIM

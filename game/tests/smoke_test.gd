@@ -38,7 +38,36 @@ func _initialize() -> void:
 		sim.command_train(int(ids[0]), 4)        # CMD_TRAIN soldier (no-op if not an HQ)
 		sim.command_harvest(int(ids[0]), int(ids[0]))
 		sim.command_attack(int(ids[0]), int(ids[0]))
+		sim.command_attack_move(int(ids[0]), 6.0, 6.0)
+		sim.command_hold(int(ids[0]))
+		sim.command_patrol(int(ids[0]), 3.0, 3.0)
 		sim.advance(1)
+	var drained = sim.drain_events()
+	if not (drained is Array):
+		push_error("[smoke] drain_events() did not return an Array"); fail += 1
+	# Event channel (real-sim only; CI smoke builds the real sim by default).
+	# Use a fresh world: the enemy scout spawns inside the idle soldier's weapon
+	# range, so ATTACK fires from the first ticks and the scout dies by ~tick 40.
+	var evsim = ClassDB.instantiate("SimBridge")
+	evsim.create(1234, 0)
+	evsim.advance(120)
+	var events = evsim.drain_events()
+	if not (events is Array) or events.is_empty():
+		push_error("[smoke] expected sim events within 120 ticks of a fresh world"); fail += 1
+	else:
+		var e0: Dictionary = events[0]
+		for k in ["type", "a", "b", "tick"]:
+			if not e0.has(k):
+				push_error("[smoke] event missing key '%s': %s" % [k, str(e0)]); fail += 1
+		var saw_attack := false
+		for e in events:
+			if int(e["type"]) == 1:   # ATTACK
+				saw_attack = true
+				break
+		if not saw_attack:
+			push_error("[smoke] no ATTACK (type 1) event among %d event(s)" % events.size()); fail += 1
+		else:
+			print("[smoke] events OK — %d event(s), first=%s" % [events.size(), str(e0)])
 	var win := int(sim.winner())
 	if win < 0 or win > 2:
 		push_error("[smoke] winner() out of range: %d" % win); fail += 1
