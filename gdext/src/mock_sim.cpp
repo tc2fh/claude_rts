@@ -1,4 +1,4 @@
-// mock_sim.cpp — stand-in implementation of sim_abi.h so the gdext/view pipeline
+// mock_sim.cpp - stand-in implementation of sim_abi.h so the gdext/view pipeline
 // builds and runs before B's real deterministic sim lands. A few entities drift
 // and bounce; MOVE/STOP commands steer them, so the whole render -> select ->
 // command path is exercisable today.
@@ -168,6 +168,13 @@ SimMapInfo sim_get_map_info(const SimWorld *w) {
 uint8_t sim_winner(const SimWorld *w) {
 	(void)w;
 	return 0; // mock: never-ending
+}
+
+uint32_t sim_drain_events(SimWorld *w, SimEvent *out, uint32_t max) {
+	(void)w;
+	(void)out;
+	(void)max;
+	return 0; // mock: emits no events
 }
 
 } // extern "C"

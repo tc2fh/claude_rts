@@ -1,8 +1,6 @@
 #include <doctest/doctest.h>
 #include "sim/sim_abi.h"
 
-namespace { fix64_t W(int c) { return (fix64_t)c << 32; } }
-
 TEST_CASE("a worker harvests the node and deposits at the HQ") {
     SimWorld* s = sim_create(7, 0);          // HQ=0, worker=1, node=2
     SimCommand h{}; h.type = CMD_HARVEST; h.player = 1; h.unit = 1; h.target = 2;
@@ -15,7 +13,7 @@ TEST_CASE("a worker harvests the node and deposits at the HQ") {
 }
 
 TEST_CASE("harvest is deterministic and batching-invariant") {
-    // 595 = 5*7*17 — divisible by all three chunk sizes so the loop runs
+    // 595 = 5*7*17 - divisible by all three chunk sizes so the loop runs
     // the identical number of ticks regardless of chunk.
     auto run = [](int chunk) {
         SimWorld* s = sim_create(9, 0);

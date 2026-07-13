@@ -45,7 +45,7 @@ enum OrderKind : std::uint8_t {
 struct COrder {
     OrderKind kind   = ORD_STOP;
     GridPos   dest{};          // move/attack-move/patrol leg target cell
-    GridPos   anchor{};        // patrol other endpoint (unused this task)
+    GridPos   anchor{};        // patrol other endpoint; ORD_STOP post (leash/return point)
     bool      to_dest = true;  // patrol leg direction (unused this task)
     EntityId  target = 0;      // ORD_ATTACK_TARGET: forced target id
 };

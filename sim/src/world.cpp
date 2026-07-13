@@ -14,6 +14,11 @@ static int cheb(int ax, int ay, int bx, int by) {
     return dx > dy ? dx : dy;
 }
 
+// ORD_STOP with the leash post (anchor) at the given cell.
+static COrder stopped_at(int cx, int cy) {
+    COrder o; o.anchor = GridPos{cx, cy}; return o;
+}
+
 World::World(std::uint64_t seed, std::uint32_t map_id) : map_(map_id), rng_(seed) {
     spawn_initial();
     publish_snapshot();
@@ -37,7 +42,7 @@ void World::spawn_initial() {
                     CUnit{TYPE_WORKER, 1, SIM_STATE_IDLE, 0, 40, 40});
     reg_.emplace<CMobile>(wk, CMobile{fix_one / 8, {}, 0});
     reg_.emplace<CHarvester>(wk, CHarvester{HARV_IDLE, 0, 0, hq_id, 0});
-    reg_.emplace<COrder>(wk, COrder{});
+    reg_.emplace<COrder>(wk, stopped_at(5, 5));
 
     auto node = spawn(CPos{Map::cell_to_world(8), Map::cell_to_world(8)},
                       CUnit{TYPE_RESOURCE, 0, SIM_STATE_IDLE, 0, 1, 1});
@@ -48,13 +53,13 @@ void World::spawn_initial() {
                     CUnit{TYPE_SOLDIER, 1, SIM_STATE_IDLE, 0, SOLDIER_HP, SOLDIER_HP});
     reg_.emplace<CMobile>(ps, CMobile{fix_one / 8, {}, 0});
     reg_.emplace<CWeapon>(ps, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0});
-    reg_.emplace<COrder>(ps, COrder{});
+    reg_.emplace<COrder>(ps, stopped_at(10, 10));
 
     // enemy HQ (id 4)
     spawn(CPos{Map::cell_to_world(20), Map::cell_to_world(20)},
           CUnit{TYPE_HQ, 2, SIM_STATE_IDLE, 0, HQ_HP, HQ_HP});
 
-    // enemy soldier (id 5) — a weak scout (hp 20, dies fast); standing attack order on player HQ
+    // enemy soldier (id 5) - a weak scout (hp 20, dies fast); standing attack order on player HQ
     auto es = spawn(CPos{Map::cell_to_world(14), Map::cell_to_world(10)},
                     CUnit{TYPE_SOLDIER, 2, SIM_STATE_IDLE, 0, 20, 20});
     reg_.emplace<CMobile>(es, CMobile{fix_one / 8, {}, 0});
@@ -85,14 +90,14 @@ void World::step() {
 // Helper: complete the order for a unit that has just exhausted its path.
 // For ORD_MOVE: always transition to ORD_STOP (path is only cleared by arrival).
 // For ORD_ATTACK_MOVE/ORD_PATROL: only transition when the unit is actually at the
-// destination cell — sys_combat may clear the path mid-flight (to fire in range)
+// destination cell - sys_combat may clear the path mid-flight (to fire in range)
 // and we must not treat that as "arrived at goal".
 static void maybe_complete_order(COrder& o, const CPos& p) {
     const int cx = Map::world_to_cell(p.x), cy = Map::world_to_cell(p.y);
     if (o.kind == ORD_MOVE) {
-        o.kind = ORD_STOP;
+        o.kind = ORD_STOP; o.anchor = GridPos{cx, cy};
     } else if (o.kind == ORD_ATTACK_MOVE) {
-        if (cx == o.dest.x && cy == o.dest.y) o.kind = ORD_STOP;
+        if (cx == o.dest.x && cy == o.dest.y) { o.kind = ORD_STOP; o.anchor = GridPos{cx, cy}; }
     } else if (o.kind == ORD_PATROL) {
         const GridPos ep = o.to_dest ? o.dest : o.anchor;
         if (cx == ep.x && cy == ep.y) o.to_dest = !o.to_dest;  // reached endpoint; head back next tick
@@ -148,9 +153,11 @@ void World::apply_commands_for(std::uint64_t t) {
         };
 
         if (c.type == CMD_STOP) {
-            for (auto e : reg_.view<CId, CMobile>()) {
+            for (auto e : reg_.view<CId, CMobile, CPos>()) {
                 if (reg_.get<CId>(e).id != c.unit) continue;
-                set_order(e, COrder{});
+                const auto& p = reg_.get<CPos>(e);
+                // Re-anchor: this spot becomes the new post.
+                set_order(e, stopped_at(Map::world_to_cell(p.x), Map::world_to_cell(p.y)));
                 auto& m = reg_.get<CMobile>(e);
                 m.path.clear(); m.next = 0;
                 break;
@@ -382,14 +389,14 @@ void World::sys_production() {
                                  CUnit{TYPE_SOLDIER, hu.owner, SIM_STATE_IDLE, 0, SOLDIER_HP, SOLDIER_HP});
                 reg_.emplace<CMobile>(sdr, CMobile{fix_one / 8, {}, 0});
                 reg_.emplace<CWeapon>(sdr, CWeapon{SOLDIER_DMG, SOLDIER_RANGE, SOLDIER_CD, 0, 0});
-                reg_.emplace<COrder>(sdr, COrder{});
+                reg_.emplace<COrder>(sdr, stopped_at(cx, cy));
                 emit_event(SIM_EVT_TRAINED, id, reg_.get<CId>(sdr).id);
             } else {
                 auto w = spawn(spawn_pos,
                                CUnit{TYPE_WORKER, hu.owner, SIM_STATE_IDLE, 0, 40, 40});
                 reg_.emplace<CMobile>(w, CMobile{fix_one / 8, {}, 0});
                 reg_.emplace<CHarvester>(w, CHarvester{HARV_IDLE, 0, 0, id, 0});
-                reg_.emplace<COrder>(w, COrder{});
+                reg_.emplace<COrder>(w, stopped_at(cx, cy));
                 emit_event(SIM_EVT_TRAINED, id, reg_.get<CId>(w).id);
             }
             pr.train_type = 0;
@@ -425,7 +432,7 @@ void World::sys_combat() {
             const EntityId tgt = reg_.get<COrder>(e).target;
             auto te = find_by_id(tgt);
             if (te == entt::null) {
-                auto& o = reg_.get<COrder>(e); o.kind = ORD_STOP; o.target = 0;
+                auto& o = reg_.get<COrder>(e); o.kind = ORD_STOP; o.target = 0; o.anchor = GridPos{mx, my};
                 w.target = 0; m.path.clear(); m.next = 0; continue;
             }
             w.target = tgt;
@@ -476,8 +483,46 @@ void World::sys_combat() {
             continue;
         }
 
-        // Defensive (ORD_STOP / ORD_HOLD):
-        // attack only what is already within weapon range; never move toward an enemy.
+        // Idle leash (ORD_STOP): step out to engage enemies in ACQUIRE_RANGE, chase up to
+        // LEASH_RANGE (Chebyshev) from the post (anchor), otherwise return to the post.
+        if (kind == ORD_STOP && reg_.all_of<COrder>(e)) {
+            const auto& o = reg_.get<COrder>(e);
+            const int dist_anchor = cheb(mx, my, o.anchor.x, o.anchor.y);
+            EntityId acquired = 0; int best = ACQUIRE_RANGE + 1;
+            for (auto& [oid, oe] : cand) {
+                const auto& ou = reg_.get<CUnit>(oe);
+                if (ou.owner == u.owner || ou.owner == 0) continue;
+                const auto& op = reg_.get<CPos>(oe);
+                const int d = cheb(mx, my, Map::world_to_cell(op.x), Map::world_to_cell(op.y));
+                if (d <= ACQUIRE_RANGE && d < best) { best = d; acquired = oid; }
+            }
+            if (acquired != 0 && dist_anchor <= LEASH_RANGE) {
+                w.target = acquired;
+                auto te = find_by_id(acquired);
+                const auto& tp = reg_.get<CPos>(te);
+                const int d = cheb(mx, my, Map::world_to_cell(tp.x), Map::world_to_cell(tp.y));
+                if (d <= w.range_cells) {
+                    m.path.clear(); m.next = 0;
+                    if (w.timer == 0) { reg_.get<CUnit>(te).hp -= w.damage; w.timer = w.cooldown; emit_event(SIM_EVT_ATTACK, id, acquired); }
+                } else {
+                    m.path = find_path(map_, {mx, my}, {Map::world_to_cell(tp.x), Map::world_to_cell(tp.y)});
+                    m.next = m.path.size() > 1 ? 1 : m.path.size();
+                }
+            } else {
+                w.target = 0;
+                if (mx != o.anchor.x || my != o.anchor.y) {
+                    const bool heading = !m.path.empty() && m.path.back().x == o.anchor.x && m.path.back().y == o.anchor.y;
+                    if (!heading) {
+                        m.path = find_path(map_, {mx, my}, o.anchor);
+                        m.next = m.path.size() > 1 ? 1 : m.path.size();
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Defensive (ORD_HOLD / no COrder): attack only what is already within
+        // weapon range; never move toward an enemy.
         EntityId acquired = 0; int best = w.range_cells + 1;
         for (auto& [oid, oe] : cand) {
             const auto& ou = reg_.get<CUnit>(oe);

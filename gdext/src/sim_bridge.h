@@ -2,6 +2,7 @@
 #define SIM_RTS_SIM_BRIDGE_H
 
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
@@ -49,7 +50,7 @@ public:
 
 	int get_resource(int player) const;
 
-	// Static map geometry (B's sim_get_map_info) — query once after create().
+	// Static map geometry (B's sim_get_map_info) - query once after create().
 	Vector2i map_size() const;            // (w, h) in cells
 	PackedByteArray map_passable() const; // w*h bytes, row-major (y*w+x): 1=open, 0=blocked
 
@@ -58,7 +59,15 @@ public:
 	void command_train(int hq_id, int unit_type);    // CMD_TRAIN (param = unit type)
 	void command_harvest(int unit_id, int node_id);  // CMD_HARVEST
 	void command_attack(int unit_id, int target_id); // CMD_ATTACK
+	void command_attack_move(int unit_id, double tx, double ty); // CMD_ATTACK_MOVE
+	void command_hold(int unit_id);                  // CMD_HOLD
+	void command_patrol(int unit_id, double tx, double ty); // CMD_PATROL
 	int winner() const;                              // 0 = ongoing, else winning owner
+
+	// Drains the sim's accumulated events; each element is a Dictionary
+	// {"type": int, "a": int, "b": int, "tick": int}. Types: ATTACK=1
+	// (a=attacker, b=victim), TRAINED=2 (a=producer, b=new unit), DIED=3 (a=dead, b=0).
+	Array drain_events();
 
 	int64_t state_hash() const;
 

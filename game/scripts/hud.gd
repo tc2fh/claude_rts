@@ -1,14 +1,50 @@
 class_name HudPanel
-extends Label
-## Minimal M0 HUD: tick + resource readout and a controls hint.
+extends PanelContainer
+## Structured match HUD with live economy, selection, status, and command hints.
 
-func set_stats(tick: int, minerals: int, selected: int = 0, winner: int = 0, my_player: int = 1) -> void:
+const VERB_LABELS := {
+	"attack": "ATTACK-MOVE",
+	"move": "MOVE",
+	"patrol": "PATROL",
+}
+
+@onready var _tick_label: Label = $Margin/Rows/Header/Tick
+@onready var _minerals_label: Label = $Margin/Rows/Header/Minerals
+@onready var _selected_label: Label = $Margin/Rows/Header/Selected
+@onready var _status_label: Label = $Margin/Rows/Status
+
+func set_stats(
+	tick: int,
+	minerals: int,
+	selected: int = 0,
+	winner: int = 0,
+	my_player: int = 1,
+	pending_verb: String = ""
+) -> void:
+	if not is_node_ready():
+		await ready
 	if tick < 0:
-		text = "SimBridge not loaded.\nBuild gdext — see docs/BUILD.md"
+		_tick_label.text = "SIM OFFLINE"
+		_minerals_label.text = "MINERALS ----"
+		_selected_label.text = "SELECTED --"
+		_status_label.text = "BUILD GDEXT  //  SEE DOCS/BUILD.MD"
+		_status_label.add_theme_color_override("font_color", Color("ff7b72"))
 		return
-	var banner := ""
+
+	_tick_label.text = "TICK %06d" % tick
+	_minerals_label.text = "MINERALS %04d" % minerals
+	_selected_label.text = "SELECTED %02d" % selected
+
 	if winner == my_player:
-		banner = "★ VICTORY ★\n\n"
+		_status_label.text = "MATCH COMPLETE  //  VICTORY"
+		_status_label.add_theme_color_override("font_color", Color("6ee7a8"))
 	elif winner != 0:
-		banner = "DEFEAT\n\n"
-	text = "%sTick: %d    Minerals: %d    Selected: %d\n\n[LMB] select   [RMB] move / attack enemy / harvest node\n[T] train soldier   [E] train worker   [WASD / edges] pan   [wheel] zoom" % [banner, tick, minerals, selected]
+		_status_label.text = "MATCH COMPLETE  //  DEFEAT"
+		_status_label.add_theme_color_override("font_color", Color("ff7b72"))
+	elif pending_verb != "":
+		var verb := str(VERB_LABELS.get(pending_verb, pending_verb.to_upper()))
+		_status_label.text = "COMMAND  //  %s  //  CHOOSE TARGET  //  ESC TO CANCEL" % verb
+		_status_label.add_theme_color_override("font_color", Color("ffd166"))
+	else:
+		_status_label.text = "COMMAND  //  READY"
+		_status_label.add_theme_color_override("font_color", Color("83d9ff"))

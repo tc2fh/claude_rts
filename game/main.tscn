@@ -1,10 +1,40 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="2_cam"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/minimap.gd" id="4_minimap"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_top"]
+bg_color = Color(0.027, 0.043, 0.071, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.137, 0.337, 0.475, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.38)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_minimap"]
+bg_color = Color(0.027, 0.043, 0.071, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.137, 0.337, 0.475, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 8
 
 [node name="Main" type="Node2D"]
+texture_filter = 1
 script = ExtResource("1_main")
 
 [node name="Camera" type="Camera2D" parent="."]
@@ -12,10 +42,128 @@ script = ExtResource("2_cam")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="Panel" type="Label" parent="HUD"]
-offset_left = 12.0
-offset_top = 8.0
-offset_right = 460.0
-offset_bottom = 132.0
-text = "Loading…"
+[node name="TopBar" type="PanelContainer" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = 120.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_top")
 script = ExtResource("3_hud")
+
+[node name="Margin" type="MarginContainer" parent="HUD/TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="Rows" type="VBoxContainer" parent="HUD/TopBar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Header" type="HBoxContainer" parent="HUD/TopBar/Margin/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Brand" type="Label" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.514, 0.851, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 19
+text = "CLAUDE RTS"
+
+[node name="Phase" type="Label" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.467, 0.561, 0.686, 1)
+theme_override_font_sizes/font_size = 13
+text = "FOUNDATION SKIRMISH"
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Tick" type="Label" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.698, 0.765, 0.851, 1)
+theme_override_font_sizes/font_size = 14
+text = "TICK 000000"
+vertical_alignment = 1
+
+[node name="Minerals" type="Label" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "MINERALS 0000"
+vertical_alignment = 1
+
+[node name="Selected" type="Label" parent="HUD/TopBar/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.514, 0.851, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "SELECTED 00"
+vertical_alignment = 1
+
+[node name="Rule" type="ColorRect" parent="HUD/TopBar/Margin/Rows"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.137, 0.337, 0.475, 0.6)
+
+[node name="Status" type="Label" parent="HUD/TopBar/Margin/Rows"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.514, 0.851, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "COMMAND  //  READY"
+
+[node name="Controls" type="Label" parent="HUD/TopBar/Margin/Rows"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.635, 0.702, 0.792, 1)
+theme_override_font_sizes/font_size = 13
+text = "LMB SELECT   RMB SMART   A ATTACK-MOVE   M MOVE   P PATROL   S STOP   H HOLD   T/E TRAIN   CTRL+1-9 ASSIGN   1-9 RECALL   ARROWS/EDGES PAN   WHEEL ZOOM"
+
+[node name="MinimapFrame" type="PanelContainer" parent="HUD"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -222.0
+offset_right = 216.0
+offset_bottom = -16.0
+grow_vertical = 0
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBox_minimap")
+
+[node name="Margin" type="MarginContainer" parent="HUD/MinimapFrame"]
+layout_mode = 2
+mouse_filter = 1
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Rows" type="VBoxContainer" parent="HUD/MinimapFrame/Margin"]
+layout_mode = 2
+mouse_filter = 1
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="HUD/MinimapFrame/Margin/Rows"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.514, 0.851, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "TACTICAL MAP"
+
+[node name="Minimap" type="Control" parent="HUD/MinimapFrame/Margin/Rows"]
+custom_minimum_size = Vector2(168, 168)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_default_cursor_shape = 2
+script = ExtResource("4_minimap")

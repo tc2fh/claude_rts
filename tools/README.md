@@ -1,3 +1,8 @@
-# tools/ — tooling & content pipeline (owner: T)
+# tools - content pipeline (owner: T)
 
-Build/packaging helpers and the map/content pipeline (map authoring, asset import/export, release packaging for macOS + Windows). Empty for now; populated as M0 → M1 needs them.
+Reproducible content helpers:
+
+- `gen_sprites.py` builds the transparent pixel-art HQ, worker, soldier, and resource sprites used by the Godot view.
+- `gen_sfx.py` synthesizes command, combat, training, and death WAV effects using only the Python standard library.
+
+Run either script from the repository root. Generated runtime assets are written under `game/assets/`.

@@ -2,7 +2,7 @@
 
 A real-time strategy game inspired by **StarCraft 2**, built to **ship on macOS + Windows**. Free to diverge with novel ideas; the tiebreaker is always *"would a player enjoy this?"*
 
-> **Status: early scaffold.** Foundation is locked; **M0** (single-player against a mock sim — render → select → command) is being built.
+> **Status: playable foundation slice.** The deterministic single-player skirmish now supports selection, economy, training, combat, SC2-style orders, control groups, audiovisual feedback, and a tactical minimap.
 
 ## Foundation (locked)
 
@@ -23,7 +23,7 @@ Full detail in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | `sim/`   | **B** | Deterministic C++ simulation core + the canonical seam header (`sim/include/sim/sim_abi.h`) |
 | `tests/` | **B** | Headless determinism / state-hash / golden-replay tests |
 | `gdext/` | **T** | GDExtension bridge (godot-cpp) wrapping `sim_abi.h` for Godot |
-| `game/`  | **T** | Godot 4 project — rendering, camera/input, selection, HUD |
+| `game/`  | **T** | Godot 4 project - rendering, camera/input, selection, HUD |
 | `assets/`, `tools/`, `docs/` | **T** | Content, tooling, documentation |
 
 **Lanes:** **B** owns Simulation & Game Core; **T** owns Presentation, Platform & Tooling. They meet at the `sim_abi.h` seam.
@@ -40,7 +40,7 @@ scons platform=macos arch=universal target=template_debug      # or: platform=wi
 # then open game/ in Godot 4.5+ and press Play.
 ```
 
-The current simulation is a **mock** (`gdext/src/mock_sim.cpp`) so the whole view pipeline runs before the real sim lands.
+The GDExtension links the **real deterministic simulation** by default. A lightweight mock remains available through `use_real_sim=no` for isolated presentation work.
 
 ## Contributing
 

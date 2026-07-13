@@ -1,10 +1,10 @@
 # Building claude_rts
 
-Two pieces build separately: the **GDExtension** (`gdext/`, native C++) and the **Godot project** (`game/`). You build the extension, then open the project in Godot — Godot loads the compiled library via `game/bin/sim_rts.gdextension`.
+Two pieces build separately: the **GDExtension** (`gdext/`, native C++) and the **Godot project** (`game/`). You build the extension, then open the project in Godot - Godot loads the compiled library via `game/bin/sim_rts.gdextension`.
 
 ## Prerequisites
 
-- **Godot 4.5+** (editor) — <https://godotengine.org/download>. A 4.5-built extension is forward-compatible through 4.6/4.7.
+- **Godot 4.5+** (editor) - <https://godotengine.org/download>. A 4.5-built extension is forward-compatible through 4.6/4.7.
 - **Python 3.8+** and **SCons 4+**: `python -m pip install "scons>=4.0"`
 - A C++17 compiler:
   - **macOS:** Xcode command-line tools (`xcode-select --install`)
@@ -19,7 +19,7 @@ git clone --recurse-submodules https://github.com/tc2fh/claude_rts
 git submodule update --init --recursive
 ```
 
-`gdext/godot-cpp` is pinned to the **4.5** branch (matches `compatibility_minimum`); `gdext/entt` is pinned to **v3.13.2** (header-only ECS, matching the sim's CMake version) — needed for the default real-sim build.
+`gdext/godot-cpp` is pinned to the **4.5** branch (matches `compatibility_minimum`); `gdext/entt` is pinned to **v3.13.2** (header-only ECS, matching the sim's CMake version) - needed for the default real-sim build.
 
 ## 2. Build the GDExtension
 
@@ -41,7 +41,7 @@ Output lands in `game/bin/` with names matching `game/bin/sim_rts.gdextension`. 
 
 ### Sim backend (real sim is the default)
 
-The gdext links **B's real deterministic sim by default** — `sim/src` + the pinned `gdext/entt` submodule — so the game runs real movement (and economy/combat as they land). For isolated view work, build the lightweight **mock** instead (no EnTT; `gdext/src/mock_sim.cpp`, which self-disables when the real sim is built):
+The gdext links **B's real deterministic sim by default** - `sim/src` + the pinned `gdext/entt` submodule - so the game runs real movement (and economy/combat as they land). For isolated view work, build the lightweight **mock** instead (no EnTT; `gdext/src/mock_sim.cpp`, which self-disables when the real sim is built):
 
 ```bash
 scons platform=macos arch=universal target=template_debug use_real_sim=no   # mock backend
@@ -51,11 +51,15 @@ scons platform=macos arch=universal target=template_debug use_real_sim=no   # mo
 
 Open `game/` in Godot 4.5+ and press **Play** (`main.tscn`). Controls:
 
-- **LMB drag** — box-select · **LMB click** — pick one
-- **RMB** — move selected units
-- **WASD / arrows / screen edges** — pan · **mouse wheel** — zoom
+- **LMB drag** - box-select; **LMB click** - pick one; **Shift+LMB** - add to selection
+- **LMB double-click** - select visible units of the same type
+- **RMB** - smart command: move, attack an enemy, or harvest a resource node
+- **A / M / P**, then **LMB** - attack-move, move, or patrol
+- **S / H** - stop or hold; **T / E** - train a soldier or worker at a selected HQ
+- **Ctrl+1-9 / 1-9** - assign or recall control groups; double-tap a group to center it
+- **Arrow keys / screen edges** - pan; **mouse wheel** - zoom to cursor
 
-If the HUD says *"SimBridge not loaded,"* the extension isn't built for your platform/target — redo step 2.
+If the HUD says *"SimBridge not loaded,"* the extension isn't built for your platform/target - redo step 2.
 
 ## CI
 
